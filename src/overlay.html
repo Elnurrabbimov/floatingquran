@@ -45,7 +45,7 @@
       font-family: var(--tr-font); font-weight: var(--tr-weight);
       font-size: calc(var(--tr-size) * var(--fit, 1)); line-height: 1.4; color: var(--tr-color);
       /* arabcha oxirgi qatordagi kasralar tarjimaga tegmasin */
-      margin-top: calc(var(--ar-size) * var(--fit, 1) * 0.2);
+      margin-top: calc(var(--ar-size) * var(--fit, 1) * 0.35);
     }
     .tr-line + .tr-line {
       margin-top: 0.45em; padding-top: 0.45em;
@@ -61,6 +61,21 @@
       clip-path: inset(0 0 0 100%);
     }
     body.nohl .w .hl { display: none; }
+    /* Tajvid ranglari — qorong'i fon uchun yorqin, yorug' fon uchun Quran.com ranglari */
+    .tj-ham_wasl, .tj-laam_shamsiyah, .tj-slnt { color: #9aa3ad; }
+    .tj-madda_normal { color: #6ea8ff; } .tj-madda_permissible { color: #8f9cff; }
+    .tj-madda_obligatory { color: #4f8cff; } .tj-madda_necessary { color: #b18cff; }
+    .tj-qalaqah { color: #ff5a5f; } .tj-ikhafa_shafawi { color: #ff6ad5; } .tj-ikhafa { color: #d07cff; }
+    .tj-idgham_shafawi { color: #7ee05a; } .tj-iqlab { color: #4fd1ff; } .tj-idgham_ghunnah { color: #2ed3a0; }
+    .tj-idgham_wo_ghunnah { color: #5bd35b; } .tj-idgham_mutajanisayn, .tj-idgham_mutaqaribayn { color: #b0b0b0; }
+    .tj-ghunnah { color: #ffa64d; }
+    body.tj-light .tj-ham_wasl, body.tj-light .tj-laam_shamsiyah, body.tj-light .tj-slnt { color: #aaaaaa; }
+    body.tj-light .tj-madda_normal { color: #537fff; } body.tj-light .tj-madda_permissible { color: #4050ff; }
+    body.tj-light .tj-madda_obligatory { color: #2144c1; } body.tj-light .tj-madda_necessary { color: #000ebc; }
+    body.tj-light .tj-qalaqah { color: #dd0008; } body.tj-light .tj-ikhafa_shafawi { color: #d500b7; }
+    body.tj-light .tj-ikhafa { color: #9400a8; } body.tj-light .tj-idgham_shafawi { color: #58b800; }
+    body.tj-light .tj-iqlab { color: #26bffd; } body.tj-light .tj-idgham_ghunnah { color: #169777; }
+    body.tj-light .tj-idgham_wo_ghunnah { color: #169200; } body.tj-light .tj-ghunnah { color: #ff7e1e; }
     .hidden { display: none; }
     body.unlocked #box { outline: 2px dashed #4fc3f7; -webkit-app-region: drag; cursor: move; }
     body.unlocked::before {
@@ -126,7 +141,27 @@
     let hlState = [];    // oxirgi qo'llangan holat (keraksiz DOM yozuvlarisiz)
     let rafId = 0;
 
+    let tajweedOn = false;
+    let lastVerse = null;
+
+    // "<rule class=ghunnah>نّ</rule>" -> rangli span'lar (innerHTML'siz, faqat matn)
+    function fillWord(el, plain, tj) {
+      if (!tajweedOn || !tj) { el.textContent = plain; return; }
+      const re = /<(rule|tajweed)\s+class=["']?([a-z_]+)["']?>(.*?)<\/\1>/g;
+      let last = 0, m;
+      while ((m = re.exec(tj))) {
+        if (m.index > last) el.append(tj.slice(last, m.index).replace(/<[^>]*>/g, ''));
+        const s = document.createElement('span');
+        s.className = 'tj tj-' + m[2];
+        s.textContent = m[3].replace(/<[^>]*>/g, '');
+        el.append(s);
+        last = re.lastIndex;
+      }
+      if (last < tj.length) el.append(tj.slice(last).replace(/<[^>]*>/g, ''));
+    }
+
     function renderArabic(p) {
+      lastVerse = p;
       hlEls = []; hlState = [];
       if (!p.words?.length) { ar.textContent = p.arabic || ''; return; }
       const frag = document.createDocumentFragment();
@@ -135,11 +170,11 @@
         const s = document.createElement('span');
         s.className = 'w';
         const base = document.createElement('span');
-        base.textContent = w;
+        fillWord(base, w, p.wordsTj?.[i]);
         const hl = document.createElement('span');
         hl.className = 'hl';
         hl.setAttribute('aria-hidden', 'true');
-        hl.textContent = w;
+        fillWord(hl, w, p.wordsTj?.[i]);
         s.append(base, hl);
         frag.append(s);
         hlEls.push(hl);
@@ -242,6 +277,14 @@
       set('--opacity', s.opacity);
       if (s.hlColor) set('--hl-color', s.hlColor);
       document.body.classList.toggle('nohl', s.wordHl === false);
+      // Yorug' fonda Quran.com'ning asl (to'qroq) tajvid ranglari
+      const n = parseInt(s.bgColor.slice(1), 16);
+      const lum = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+      document.body.classList.toggle('tj-light', s.bgAlpha > 0.5 && lum > 0.6);
+      if (!!s.tajweed !== tajweedOn) {
+        tajweedOn = !!s.tajweed;
+        if (lastVerse && lastVerse.id === shownId) { renderArabic(lastVerse); schedulePaint(); }
+      }
       ar.classList.toggle('hidden', !s.showArabic);
       tr.classList.toggle('hidden', !s.showTranslation);
       key.classList.toggle('hidden', !s.showLabel);

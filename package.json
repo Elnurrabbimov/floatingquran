@@ -1,7 +1,7 @@
 {
   "name": "suzuvchi-quron",
   "productName": "Suzuvchi Quron",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Quron tilovati va barcha oynalar ustida suzib turuvchi subtitle",
   "main": "src/main.js",
   "author": "Elnur Suyunov",

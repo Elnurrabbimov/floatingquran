@@ -273,6 +273,7 @@ async function buildQueue(sel, translationIds) {
       label: `${shortSurahName(v.chapter)} ${v.key}`,
       arabic: v.arabic,
       words: v.words,
+      wordsTj: v.wordsTj,
       translations: v.translations,
     });
   }
@@ -332,7 +333,7 @@ async function loadVerses(kind, id, translationIds) {
   let page = 1;
   while (page) {
     const d = await getJSON(
-      `${API}/verses/by_${kind}/${id}?translations=${translationIds}&fields=text_uthmani&words=true&word_fields=text_uthmani&per_page=300&page=${page}`
+      `${API}/verses/by_${kind}/${id}?translations=${translationIds}&fields=text_uthmani&words=true&word_fields=text_uthmani,text_uthmani_tajweed&per_page=300&page=${page}`
     );
     for (const v of d.verses) {
       out.push({
@@ -341,6 +342,7 @@ async function loadVerses(kind, id, translationIds) {
         key: v.verse_key,
         arabic: v.text_uthmani,
         words: verseWords(v),
+        wordsTj: verseWords(v, 'text_uthmani_tajweed'),
         translations: pickTranslations(v, translationIds),
       });
     }
@@ -350,13 +352,13 @@ async function loadVerses(kind, id, translationIds) {
 }
 
 async function loadBismillah(translationIds) {
-  const d = await getJSON(`${API}/verses/by_key/1:1?translations=${translationIds}&fields=text_uthmani&words=true&word_fields=text_uthmani`);
-  return { arabic: d.verse.text_uthmani, words: verseWords(d.verse), translations: pickTranslations(d.verse, translationIds) };
+  const d = await getJSON(`${API}/verses/by_key/1:1?translations=${translationIds}&fields=text_uthmani&words=true&word_fields=text_uthmani,text_uthmani_tajweed`);
+  return { arabic: d.verse.text_uthmani, words: verseWords(d.verse), wordsTj: verseWords(d.verse, 'text_uthmani_tajweed'), translations: pickTranslations(d.verse, translationIds) };
 }
 
 // Oyat so'zlari (oxiridagi oyat raqami belgisisiz)
-function verseWords(v) {
-  return (v.words || []).filter((w) => w.char_type_name === 'word').map((w) => w.text_uthmani || w.text);
+function verseWords(v, field = 'text_uthmani') {
+  return (v.words || []).filter((w) => w.char_type_name === 'word').map((w) => w[field] || w.text_uthmani || w.text);
 }
 
 // --- So'zma-so'z bo'yash: Quran.com so'z vaqtlari (sura audio fayli bo'yicha) ---
@@ -411,7 +413,7 @@ function sendClock() {
 function showItem(item) {
   verseSeq++;
   clockRate = 1;
-  window.bridge.showVerse({ id: verseSeq, arabic: item.arabic, words: item.words, translations: item.translations, label: item.label });
+  window.bridge.showVerse({ id: verseSeq, arabic: item.arabic, words: item.words, wordsTj: item.wordsTj, translations: item.translations, label: item.label });
   window.bridge.setPlayerState({ title: item.label });
   updateNowPlaying(item);
 }
@@ -676,6 +678,7 @@ function readStyle() {
     bgAlpha: +v('bgAlpha') / 100, opacity: +v('opacity') / 100,
     shadow: +v('shadow'), outline: +v('outline'), radius: +v('radius'), pad: +v('pad'),
     showArabic: $('showAr').checked, showTranslation: $('showTr').checked, showLabel: $('showLabel').checked,
+    tajweed: $('tajweed').checked,
     wordHl: $('wordHl').checked, hlColor: currentHlColor(),
   };
 }
@@ -716,7 +719,23 @@ function autoHlColor(textHex, bgHex, bgAlpha) {
   return best;
 }
 
+// Tajvid ranglari izohi (overlay'dagi qorong'i fon palitrasi bilan bir xil)
+const TAJWEED_LEGEND = [
+  ['#ffa64d', "G'unna"], ['#d07cff', 'Ixfo'], ['#ff6ad5', 'Ixfoi shafaviy'], ['#2ed3a0', "Idg'om g'unnali"],
+  ['#5bd35b', "Idg'om g'unnasiz"], ['#7ee05a', "Idg'omi shafaviy"], ['#4fd1ff', 'Iqlob'], ['#ff5a5f', 'Qalqala'],
+  ['#6ea8ff', 'Madd tabiiy'], ['#8f9cff', "Madd joiz"], ['#4f8cff', 'Madd vojib'], ['#b18cff', 'Madd lozim'],
+  ['#9aa3ad', "O'qilmaydigan harf"],
+];
+$('tajweedLegend').replaceChildren(...TAJWEED_LEGEND.map(([c, name]) => {
+  const s = document.createElement('span');
+  const i = document.createElement('i');
+  i.style.background = c;
+  s.append(i, name);
+  return s;
+}));
+
 function currentHlColor() {
+  $('tajweedLegend').classList.toggle('hidden', !$('tajweed').checked);
   const auto = $('hlAuto').checked;
   $('hlColor').disabled = auto;
   if (auto) $('hlColor').value = autoHlColor($('arColor').value, $('bgColor').value, +$('bgAlpha').value / 100);

@@ -116,6 +116,10 @@
     /* Segment tugmalar (Sahifa/Sura/Juz, takrorlash) */
     .seg { display: flex; gap: 3px; padding: 3px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); }
     .seg button { flex: 1; border: 0; background: transparent; padding: 6px 4px; font-size: 13px; color: var(--muted); }
+    .tj-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; margin: 6px 0 2px; color: var(--muted); }
+    .tj-legend span { display: inline-flex; align-items: center; gap: 4px; }
+    .tj-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+    .tj-legend.hidden { display: none; }
     .seg button.on { background: var(--card); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
     input.num {
       width: 100%; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border);
@@ -349,9 +353,11 @@
       <div class="checks">
         <label><input id="showAr" data-style type="checkbox" checked /> Arabcha</label>
         <label><input id="showLabel" data-style type="checkbox" checked /> Sura va oyat raqami</label>
+        <label><input id="tajweed" data-style type="checkbox" /> Tajvid ranglari</label>
         <label title="Qori o'qiyotgan so'z harfma-harf bo'yaladi (Muayqiliy, G'omidiy, Qatomiyda yo'q)"><input id="wordHl" data-style type="checkbox" checked /> O'qilayotgan so'zni bo'yash</label>
         <label id="allScreensRow"><input id="allScreens" type="checkbox" checked /> Barcha monitorlarda</label>
       </div>
+      <div id="tajweedLegend" class="tj-legend hidden"></div>
       <div class="row">
         <button id="lockBtn">Joyini o'zgartirish</button>
         <button id="visBtn">Yashirish</button>
