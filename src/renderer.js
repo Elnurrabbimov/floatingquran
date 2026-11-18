@@ -100,7 +100,7 @@ const chapterPicker = createPicker({
   root: $('chapterPicker'),
   hiddenInput: $('chapter'),
   placeholder: 'Raqam yoki nom: 36, yosin, mulk, الملك ...',
-  onSelect: () => loadSurah(),
+  onSelect: () => { updateAyahRange(true); loadSurah(); },
 });
 
 const reciterPicker = createPicker({
@@ -177,21 +177,19 @@ async function loadTranslations() {
 // Tarjima almashtirilganda audio to'xtamaydi — faqat matn yangilanadi
 async function changeTranslation() {
   savePrefs();
-  if (!queue.length) return;
-  const chapter = +$('chapter').value;
+  if (!queue.length || !loadedSel) return;
   const translation = $('translation').value;
   setStatus('Tarjima yuklanmoqda...');
   try {
-    const verses = await loadVerses(chapter, translation);
+    const verses = await fetchSelection(loadedSel, translation);
     if (translation !== $('translation').value) return; // shu orada yana o'zgardi
     const byKey = Object.fromEntries(verses.map((v) => [v.key, v.translations]));
-    const b = queue[0]?.label === 'Basmala' ? await loadBismillah(translation) : null;
-    for (const item of queue) item.translations = item.label === 'Basmala' ? b.translations : byKey[item.label] || [];
-    loadedKey = `${chapter}|${translation}`;
+    const b = queue.some((it) => it.isBasmala) ? await loadBismillah(translation) : null;
+    for (const item of queue) item.translations = item.isBasmala ? b.translations : byKey[item.key] || [];
+    loadedKey = selectionKey(loadedSel, translation);
     if (index >= 0) {
-      const item = queue[index];
-      showItem(item);
-      setStatus(`${chapterName} · ${item.label} (${index + 1}/${queue.length})`);
+      showItem(queue[index]);
+      updateStatus();
     } else {
       setStatus('Tarjima almashtirildi.');
     }
@@ -204,9 +202,93 @@ function surahTitle(c) {
   return `${c.id}. ${UZ_NAMES[c.id - 1] || c.name_simple} — ${c.name_arabic}`;
 }
 
-function stepSurah(delta) {
-  const next = +$('chapter').value + delta;
-  if (next < 1 || next > 114 || !chapterPicker.setValue(next)) return;
+const shortSurahName = (id) => UZ_NAMES[id - 1] || `Sura ${id}`;
+const clampInt = (v, min, max) => Math.min(max, Math.max(min, Math.round(+v) || min));
+
+// --- Ijro oralig'i: sura (dan–gacha), sahifa yoki juz ---
+function syncModeUI() {
+  const mode = $('playMode').value;
+  $('surahBox').hidden = mode !== 'surah';
+  $('pageBox').hidden = mode !== 'page';
+  $('juzBox').hidden = mode !== 'juz';
+}
+
+// Sura almashganda "Dan/Gacha" chegaralari; reset=true — butun sura
+function updateAyahRange(reset) {
+  const c = chapters.find((x) => x.id === +$('chapter').value);
+  if (!c) return;
+  const max = c.verses_count;
+  $('fromAyah').max = $('toAyah').max = max;
+  if (reset || !$('fromAyah').value || +$('toAyah').value > max || +$('fromAyah').value > max) {
+    $('fromAyah').value = 1;
+    $('toAyah').value = max;
+  }
+}
+
+function currentSelection() {
+  const mode = $('playMode').value;
+  if (mode === 'page') {
+    const p = clampInt($('pageNum').value, 1, 604);
+    $('pageNum').value = p;
+    return { kind: 'page', id: p, title: `${p}-sahifa` };
+  }
+  if (mode === 'juz') {
+    const j = clampInt($('juzNum').value, 1, 30);
+    $('juzNum').value = j;
+    return { kind: 'juz', id: j, title: `${j}-juz` };
+  }
+  const ch = +$('chapter').value;
+  const c = chapters.find((x) => x.id === ch);
+  const max = c?.verses_count || 286;
+  let from = clampInt($('fromAyah').value, 1, max);
+  let to = clampInt($('toAyah').value, 1, max);
+  if (to < from) [from, to] = [to, from];
+  $('fromAyah').value = from;
+  $('toAyah').value = to;
+  const name = c ? surahTitle(c) : `Sura ${ch}`;
+  return { kind: 'chapter', id: ch, from, to, title: from === 1 && to === max ? name : `${name}, ${from}–${to}` };
+}
+
+const selectionKey = (sel, tr) => [sel.kind, sel.id, sel.from, sel.to, tr].join('|');
+
+async function fetchSelection(sel, translationIds) {
+  const verses = await loadVerses(sel.kind, sel.id, translationIds);
+  return sel.kind === 'chapter' ? verses.filter((v) => v.verseNumber >= sel.from && v.verseNumber <= sel.to) : verses;
+}
+
+// Navbat: oyatlar + har bir sura boshida Basmala (Fotiha va Tavbadan tashqari)
+async function buildQueue(sel, translationIds) {
+  const verses = await fetchSelection(sel, translationIds);
+  const needB = (v) => v.verseNumber === 1 && v.chapter !== 1 && v.chapter !== 9;
+  const b = verses.some(needB) ? await loadBismillah(translationIds) : null;
+  const q = [];
+  for (const v of verses) {
+    if (needB(v)) q.push({ file: '001001', key: 'Basmala', isBasmala: true, label: `${shortSurahName(v.chapter)} · Basmala`, ...b });
+    q.push({
+      file: pad3(v.chapter) + pad3(v.verseNumber),
+      key: v.key,
+      label: `${shortSurahName(v.chapter)} ${v.key}`,
+      arabic: v.arabic,
+      translations: v.translations,
+    });
+  }
+  return q;
+}
+
+// ‹ › tugmalari: joriy rejimga qarab sura / sahifa / juz
+function stepSelection(delta) {
+  const mode = $('playMode').value;
+  if (mode === 'page' || mode === 'juz') {
+    const el = $(mode === 'page' ? 'pageNum' : 'juzNum');
+    const max = mode === 'page' ? 604 : 30;
+    const next = +el.value + delta;
+    if (next < 1 || next > max) return;
+    el.value = next;
+  } else {
+    const next = +$('chapter').value + delta;
+    if (next < 1 || next > 114 || !chapterPicker.setValue(next)) return;
+    updateAyahRange(true);
+  }
   loadSurah();
 }
 
@@ -240,15 +322,17 @@ function pickTranslations(v, translationIds) {
   return translationIds.split(',').map((id) => byId[id] || '').filter(Boolean);
 }
 
-async function loadVerses(chapter, translationIds) {
+// kind: 'chapter' | 'page' | 'juz'
+async function loadVerses(kind, id, translationIds) {
   const out = [];
   let page = 1;
   while (page) {
     const d = await getJSON(
-      `${API}/verses/by_chapter/${chapter}?translations=${translationIds}&fields=text_uthmani&words=false&per_page=300&page=${page}`
+      `${API}/verses/by_${kind}/${id}?translations=${translationIds}&fields=text_uthmani&words=false&per_page=300&page=${page}`
     );
     for (const v of d.verses) {
       out.push({
+        chapter: +v.verse_key.split(':')[0],
         verseNumber: v.verse_number,
         key: v.verse_key,
         arabic: v.text_uthmani,
@@ -266,8 +350,8 @@ async function loadBismillah(translationIds) {
 }
 
 function showItem(item) {
-  window.bridge.showVerse({ arabic: item.arabic, translations: item.translations, label: `${chapterName} · ${item.label}` });
-  window.bridge.setPlayerState({ title: `${chapterName} · ${item.label}` });
+  window.bridge.showVerse({ arabic: item.arabic, translations: item.translations, label: item.label });
+  window.bridge.setPlayerState({ title: item.label });
   updateNowPlaying(item);
 }
 
@@ -321,6 +405,7 @@ let playToken = 0; // tez-tez bosilganda eski so'rovlar natijasini e'tiborsiz qo
 async function playIndex(i) {
   const token = ++playToken;
   stopCurrent();
+  ayahPlays = 0;
   if (i < 0 || i >= queue.length) {
     index = -1;
     dropPreloaded();
@@ -333,7 +418,7 @@ async function playIndex(i) {
   const item = queue[i];
 
   showItem(item);
-  setStatus(`${chapterName} · ${item.label} (${i + 1}/${queue.length})`);
+  updateStatus();
 
   let audio;
   try {
@@ -358,20 +443,21 @@ async function playIndex(i) {
   current.play().catch((e) => setStatus('Ijro xatosi: ' + e.message));
 
   // Keyingi oyatni oldindan yuklash — oyatlar orasida pauza bo'lmasin
-  const next = i + 1 < queue.length ? i + 1 : repeatMode === 'surah' ? 0 : -1;
+  const next = i + 1 < queue.length ? i + 1 : rangeRepeat() > 1 ? 0 : -1;
   if (next >= 0) preload(next);
   showCacheSize();
 }
 
-let loadedKey = null; // hozir ochiq sura: "sura|tarjima"
+let loadedKey = null; // hozir ochiq oraliq + tarjima
+let loadedSel = null;
 
 async function loadSurah() {
-  const chapter = +$('chapter').value;
+  const sel = currentSelection();
   const translation = $('translation').value;
   savePrefs();
 
-  // Shu sura allaqachon ochiq — qayta yuklamasdan davom ettiramiz
-  const key = `${chapter}|${translation}`;
+  // Shu oraliq allaqachon ochiq — qayta yuklamasdan davom ettiramiz
+  const key = selectionKey(sel, translation);
   if (key === loadedKey && queue.length) {
     if (current) { if (current.paused) current.play(); }
     else playIndex(index >= 0 ? index : 0);
@@ -379,30 +465,16 @@ async function loadSurah() {
   }
 
   $('load').disabled = true;
-  const cached = await isCached(
-    `${API}/verses/by_chapter/${chapter}?translations=${translation}&fields=text_uthmani&words=false&per_page=300&page=1`
-  );
-  setStatus(cached ? 'Keshdan ochilmoqda...' : 'Matn yuklanmoqda...');
+  setStatus('Matn yuklanmoqda...');
   try {
-    const verses = await loadVerses(chapter, translation);
-    const c = chapters.find((x) => x.id === chapter);
-    chapterName = c ? surahTitle(c) : `Sura ${chapter}`;
-
-    queue = verses.map((v) => ({
-      file: pad3(chapter) + pad3(v.verseNumber),
-      label: v.key,
-      arabic: v.arabic,
-      translations: v.translations,
-    }));
-
-    // Fotiha va Tavbadan boshqa suralar boshida Basmala o'qiladi
-    if (chapter !== 1 && chapter !== 9) {
-      const b = await loadBismillah(translation);
-      queue.unshift({ file: '001001', label: 'Basmala', ...b });
-    }
-
+    const q = await buildQueue(sel, translation);
+    if (!q.length) throw new Error('Bu oraliqda oyat topilmadi');
+    queue = q;
+    chapterName = sel.title;
     dropPreloaded();
     loadedKey = key;
+    loadedSel = sel;
+    rangePlays = 0;
     playIndex(0);
   } catch (e) {
     setStatus('Xato: ' + e.message);
@@ -417,7 +489,7 @@ function updateNowPlaying(item) {
   navigator.mediaSession.metadata = new MediaMetadata({
     title: item.translations?.[0] || item.arabic,
     artist: item.arabic,
-    album: `${chapterName} · ${item.label}`,
+    album: item.label,
   });
 }
 
@@ -430,38 +502,71 @@ if ('mediaSession' in navigator) {
 }
 
 // --- Qayta ijro va takrorlash ---
-const REPEAT_MODES = ['off', 'ayah', 'surah'];
-const REPEAT_LABELS = { off: 'o\'chiq', ayah: 'oyat', surah: 'sura' };
-let repeatMode = 'off';
+// "1" | "2" | "3" | "inf"
+const REPEAT_VALUES = { 1: 1, 2: 2, 3: 3, inf: Infinity };
+const ayahRepeat = () => REPEAT_VALUES[$('ayahRepeat').value] ?? 1;
+const rangeRepeat = () => REPEAT_VALUES[$('rangeRepeat').value] ?? 1;
+let ayahPlays = 0;  // joriy oyat necha marta to'liq o'qildi
+let rangePlays = 0; // butun oraliq necha marta to'liq o'qildi
+
+function updateStatus() {
+  const item = queue[index];
+  if (!item) return;
+  const fmt = (n) => (n === Infinity ? '∞' : n);
+  let s = `${chapterName} · ${item.label} (${index + 1}/${queue.length})`;
+  if (!item.isBasmala && ayahRepeat() > 1) s += ` · oyat ${ayahPlays + 1}/${fmt(ayahRepeat())}`;
+  if (rangeRepeat() > 1) s += ` · qiroat ${rangePlays + 1}/${fmt(rangeRepeat())}`;
+  setStatus(s);
+}
 
 function handleEnded() {
-  if (repeatMode === 'ayah') {
+  const item = queue[index];
+  ayahPlays++;
+  // Har bir oyatni takrorlash (Basmala takrorlanmaydi)
+  if (!item.isBasmala && ayahPlays < ayahRepeat()) {
     current.currentTime = 0;
-    current.play();
+    current.play().catch(() => {});
+    updateStatus();
     return;
   }
-  if (repeatMode === 'surah' && index + 1 >= queue.length) {
-    playIndex(0);
+  if (index + 1 < queue.length) {
+    playIndex(index + 1);
     return;
   }
-  playIndex(index + 1);
+  // Oraliq tugadi — umumiy qiroatni takrorlash
+  rangePlays++;
+  if (rangePlays < rangeRepeat()) playIndex(0);
+  else playIndex(queue.length); // tugadi
 }
 
 function replay() {
   if (current) {
     current.currentTime = 0;
-    current.play();
+    current.play().catch(() => {});
   } else if (queue.length) {
-    playIndex(0); // sura tugagan — boshidan
+    rangePlays = 0;
+    playIndex(0); // qiroat tugagan — boshidan
   }
 }
 
-function setRepeatMode(mode) {
-  repeatMode = REPEAT_MODES.includes(mode) ? mode : 'off';
-  $('repeatBtn').textContent = `🔁 Takrorlash: ${REPEAT_LABELS[repeatMode]}`;
-  $('repeatBtn').classList.toggle('active', repeatMode !== 'off');
-  try { localStorage.setItem('repeatMode', repeatMode); } catch {}
+// Segment tugmalar: <div class="seg" data-for="hiddenInputId"><button data-v="..."></div>
+function syncSegs() {
+  document.querySelectorAll('.seg[data-for]').forEach((seg) => {
+    const v = $(seg.dataset.for).value;
+    seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === v));
+  });
 }
+document.querySelectorAll('.seg[data-for]').forEach((seg) => {
+  seg.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-v]');
+    if (!b) return;
+    $(seg.dataset.for).value = b.dataset.v;
+    syncSegs();
+    if (seg.dataset.for === 'playMode') syncModeUI();
+    else updateStatus();
+    savePrefs();
+  });
+});
 
 function togglePlay() {
   if (!current) {
@@ -513,7 +618,11 @@ function applyPreset(name) {
   pushStyle(true);
 }
 
-const PREF_IDS = ['chapter', 'reciter', 'translation', 'volume', ...STYLE_EL.filter((e) => e.type !== 'checkbox').map((e) => e.id)];
+const PREF_IDS = [
+  'chapter', 'reciter', 'translation', 'volume',
+  'playMode', 'fromAyah', 'toAyah', 'pageNum', 'juzNum', 'ayahRepeat', 'rangeRepeat',
+  ...STYLE_EL.filter((e) => e.type !== 'checkbox').map((e) => e.id),
+];
 const CHECK_IDS = STYLE_EL.filter((e) => e.type === 'checkbox').map((e) => e.id);
 
 function savePrefs() {
@@ -534,9 +643,21 @@ function restorePrefs() {
       el.value = p[id];
     }
     for (const id of CHECK_IDS) if (p[id] !== undefined) $(id).checked = p[id];
+    // Eski versiyadagi "Takrorlash: oyat/sura" rejimini yangi sozlamaga o'tkazish
+    const old = localStorage.getItem('repeatMode');
+    if (old && p.ayahRepeat === undefined) {
+      if (old === 'ayah') $('ayahRepeat').value = 'inf';
+      if (old === 'surah') $('rangeRepeat').value = 'inf';
+      localStorage.removeItem('repeatMode');
+    }
   } catch {}
+  if (!['page', 'surah', 'juz'].includes($('playMode').value)) $('playMode').value = 'surah';
+  for (const id of ['ayahRepeat', 'rangeRepeat']) if (!(String($(id).value) in REPEAT_VALUES)) $(id).value = '1';
+  syncModeUI();
+  syncSegs();
   // Tanlagichlar: saqlangan qiymat yaroqsiz bo'lsa (masalan eski versiyadan) — standart qiymat
   if (!chapterPicker.setValue($('chapter').value)) chapterPicker.setValue(1);
+  updateAyahRange(false);
   if (!reciterPicker.setValue($('reciter').value)) reciterPicker.setValue(RECITERS[0][0]);
   if (translationPicker.items().length && !translationPicker.setValue($('translation').value)) translationPicker.setValue(55);
   pushStyle();
@@ -553,12 +674,12 @@ $('playBtn').addEventListener('click', togglePlay);
 $('prevBtn').addEventListener('click', () => { if (queue.length) playIndex(Math.max(0, index - 1)); });
 $('nextBtn').addEventListener('click', () => { if (queue.length && index >= 0) playIndex(index + 1); });
 $('replayBtn').addEventListener('click', replay);
-$('repeatBtn').addEventListener('click', () => {
-  setRepeatMode(REPEAT_MODES[(REPEAT_MODES.indexOf(repeatMode) + 1) % REPEAT_MODES.length]);
-});
-try { setRepeatMode(localStorage.getItem('repeatMode')); } catch { setRepeatMode('off'); }
-$('prevSurah').addEventListener('click', () => stepSurah(-1));
-$('nextSurah').addEventListener('click', () => stepSurah(1));
+$('prevSurah').addEventListener('click', () => stepSelection(-1));
+$('nextSurah').addEventListener('click', () => stepSelection(1));
+document.querySelectorAll('#pageBox [data-step], #juzBox [data-step]').forEach((b) =>
+  b.addEventListener('click', () => stepSelection(+b.dataset.step)));
+// Oraliq qo'lda o'zgartirilsa — darhol yangi oraliqni o'qish
+['fromAyah', 'toAyah', 'pageNum', 'juzNum'].forEach((id) => $(id).addEventListener('change', () => loadSurah()));
 $('clearCacheBtn').addEventListener('click', clearCache);
 showCacheSize();
 $('lockBtn').addEventListener('click', () => window.bridge.toggleLock());

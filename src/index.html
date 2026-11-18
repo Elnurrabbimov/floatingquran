@@ -113,6 +113,16 @@
     .switch input:checked + .slider::after { transform: translateX(12px); }
     #translationPicker.off .picker-current { opacity: .5; }
 
+    /* Segment tugmalar (Sahifa/Sura/Juz, takrorlash) */
+    .seg { display: flex; gap: 3px; padding: 3px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); }
+    .seg button { flex: 1; border: 0; background: transparent; padding: 6px 4px; font-size: 13px; color: var(--muted); }
+    .seg button.on { background: var(--card); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+    input.num {
+      width: 100%; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--card); color: var(--text); font-size: 14px;
+    }
+    .picker-row input.num { flex: 1; text-align: center; }
+
     /* Tezkor tugmalar */
     .sc-row { display: grid; grid-template-columns: 1fr 150px auto auto; gap: 6px; align-items: center; padding: 4px 0; }
     .sc-title { font-size: 13px; }
@@ -130,12 +140,50 @@
   <h1>Suzuvchi Quron</h1>
 
   <div class="card">
-    <label>Sura</label>
-    <input type="hidden" id="chapter" value="1" />
-    <div class="picker-row">
-      <button id="prevSurah" class="nav" title="Oldingi sura">‹</button>
-      <div id="chapterPicker"></div>
-      <button id="nextSurah" class="nav" title="Keyingi sura">›</button>
+    <label>Ijro turi</label>
+    <input type="hidden" id="playMode" value="surah" />
+    <div class="seg" data-for="playMode">
+      <button data-v="page">Sahifa</button>
+      <button data-v="surah">Sura</button>
+      <button data-v="juz">Juz</button>
+    </div>
+
+    <div id="surahBox">
+      <label>Sura</label>
+      <input type="hidden" id="chapter" value="1" />
+      <div class="picker-row">
+        <button id="prevSurah" class="nav" title="Oldingi sura">‹</button>
+        <div id="chapterPicker"></div>
+        <button id="nextSurah" class="nav" title="Keyingi sura">›</button>
+      </div>
+      <div class="grid2">
+        <div>
+          <label for="fromAyah">Dan (oyat)</label>
+          <input id="fromAyah" class="num" type="number" min="1" value="1" />
+        </div>
+        <div>
+          <label for="toAyah">Gacha (oyat)</label>
+          <input id="toAyah" class="num" type="number" min="1" value="7" />
+        </div>
+      </div>
+    </div>
+
+    <div id="pageBox" hidden>
+      <label for="pageNum">Sahifa (1–604)</label>
+      <div class="picker-row">
+        <button class="nav" data-step="-1" title="Oldingi sahifa">‹</button>
+        <input id="pageNum" class="num" type="number" min="1" max="604" value="1" />
+        <button class="nav" data-step="1" title="Keyingi sahifa">›</button>
+      </div>
+    </div>
+
+    <div id="juzBox" hidden>
+      <label for="juzNum">Juz (1–30)</label>
+      <div class="picker-row">
+        <button class="nav" data-step="-1" title="Oldingi juz">‹</button>
+        <input id="juzNum" class="num" type="number" min="1" max="30" value="30" />
+        <button class="nav" data-step="1" title="Keyingi juz">›</button>
+      </div>
     </div>
 
     <label>Qori</label>
@@ -162,8 +210,25 @@
       <button id="nextBtn" title="Keyingi oyat">⏭</button>
     </div>
     <div class="row">
-      <button id="replayBtn" title="Joriy oyatni boshidan (sura tugagan bo'lsa — surani boshidan)">↺ Qayta</button>
-      <button id="repeatBtn" title="Takrorlash rejimi">🔁 Takrorlash: o'chiq</button>
+      <button id="replayBtn" title="Joriy oyatni boshidan (tugagan bo'lsa — qiroatni boshidan)">↺ Qayta</button>
+    </div>
+
+    <label>Har bir oyatni takrorlash</label>
+    <input type="hidden" id="ayahRepeat" value="1" />
+    <div class="seg" data-for="ayahRepeat">
+      <button data-v="1">1 marta</button>
+      <button data-v="2">2 marta</button>
+      <button data-v="3">3 marta</button>
+      <button data-v="inf">Takrorlash</button>
+    </div>
+
+    <label>Umumiy qiroatni takrorlash</label>
+    <input type="hidden" id="rangeRepeat" value="1" />
+    <div class="seg" data-for="rangeRepeat">
+      <button data-v="1">1 marta</button>
+      <button data-v="2">2 marta</button>
+      <button data-v="3">3 marta</button>
+      <button data-v="inf">Takrorlash</button>
     </div>
     <label for="volume">Ovoz</label>
     <input id="volume" type="range" min="0" max="100" value="100" />
