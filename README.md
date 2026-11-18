@@ -29,7 +29,7 @@ Barchasi ilovaning "Tezkor tugmalar" bo'limida o'zgartiriladi.
 
 ## O'rnatish
 
-`dist/` papkasidagi installer'lar:
+Installer'larni [Releases](https://github.com/Elnurrabbimov/floatingquran/releases/latest) sahifasidan yuklab oling:
 
 | Platforma | Fayl |
 |---|---|
@@ -59,6 +59,7 @@ npm run dist:mac     # macOS .dmg
 npm run dist:win     # Windows .exe (macOS'da ham yig'iladi)
 npm run dist:linux   # Linux AppImage (.deb faqat Linux'da yoki GNU binutils bilan)
 npm run icons        # build/icon.html dan ikonkalarni qayta yaratish
+bash scripts/release.sh   # dist/ dagi installer'lar bilan GitHub release (gh CLI kerak)
 ```
 
 ### Tuzilish

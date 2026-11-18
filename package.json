@@ -6,10 +6,10 @@
   "main": "src/main.js",
   "author": "Elnur Suyunov",
   "license": "MIT",
-  "homepage": "https://gitlab.com/Elnurrabbimov/floatingquran",
+  "homepage": "https://github.com/Elnurrabbimov/floatingquran",
   "repository": {
     "type": "git",
-    "url": "https://gitlab.com/Elnurrabbimov/floatingquran.git"
+    "url": "https://github.com/Elnurrabbimov/floatingquran.git"
   },
   "scripts": {
     "start": "electron .",
