@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Lateef:wght@400;700&family=Reem+Kufi:wght@400;700&family=Aref+Ruqaa:wght@400;700&family=Inter:wght@400;600;700&family=Roboto:wght@400;500;700&family=Montserrat:wght@400;600;700&family=Nunito:wght@400;600;700&family=Merriweather:wght@400;700&family=Noto+Serif:wght@400;700&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ar-font: "Amiri Quran", "Geeza Pro", serif;
+      --tr-font: -apple-system, "Segoe UI", Roboto, sans-serif;
+      --ar-size: 40px; --tr-size: 20px;
+      --ar-color: #ffffff; --tr-color: #e8eef5; --label-color: #ffffff;
+      --tr-weight: 400;
+      --bg: rgba(10, 14, 20, 0.55);
+      --shadow: 3px; --outline: 0px; --outline-color: #000000;
+      --radius: 16px; --pad: 14px; --line: 1.9;
+      --opacity: 1;
+    }
+    html, body {
+      margin: 0; height: 100%; background: transparent; overflow: hidden;
+      user-select: none;
+    }
+    body { display: flex; align-items: flex-end; justify-content: center; }
+    #box {
+      max-width: calc(100% - 24px); margin: 12px;
+      padding: var(--pad) calc(var(--pad) * 1.7); border-radius: var(--radius);
+      background: var(--bg);
+      text-align: center;
+      transition: opacity .35s ease;
+      opacity: 0;
+    }
+    #box.visible { opacity: var(--opacity); }
+    #ar, #tr, #key {
+      text-shadow: 0 1px var(--shadow) rgba(0,0,0,.95), 0 0 var(--shadow) rgba(0,0,0,.8);
+      -webkit-text-stroke: var(--outline) var(--outline-color);
+      paint-order: stroke fill;
+    }
+    #ar {
+      direction: rtl; font-family: var(--ar-font);
+      font-size: calc(var(--ar-size) * var(--fit, 1)); line-height: var(--line); color: var(--ar-color);
+    }
+    #tr {
+      font-family: var(--tr-font); font-weight: var(--tr-weight);
+      font-size: calc(var(--tr-size) * var(--fit, 1)); line-height: 1.4; color: var(--tr-color);
+      /* arabcha oxirgi qatordagi kasralar tarjimaga tegmasin */
+      margin-top: calc(var(--ar-size) * var(--fit, 1) * 0.2);
+    }
+    .tr-line + .tr-line {
+      margin-top: 0.45em; padding-top: 0.45em;
+      border-top: 1px solid color-mix(in srgb, var(--tr-color) 25%, transparent);
+    }
+    #key { font-family: var(--tr-font); font-size: 12px; opacity: .6; margin-top: 4px; color: var(--label-color); }
+    .hidden { display: none; }
+    body.unlocked #box { outline: 2px dashed #4fc3f7; -webkit-app-region: drag; cursor: move; }
+    body.unlocked::before {
+      content: "Sudrab joylashtiring · Cmd/Ctrl+Shift+L bilan qulflang";
+      position: fixed; top: 6px; left: 50%; transform: translateX(-50%);
+      background: #4fc3f7; color: #000; font: 12px -apple-system, sans-serif; padding: 3px 10px; border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div id="box">
+    <div id="ar"></div>
+    <div id="tr"></div>
+    <div id="key"></div>
+  </div>
+  <script>
+    const box = document.getElementById('box');
+    const ar = document.getElementById('ar');
+    const tr = document.getElementById('tr');
+    const key = document.getElementById('key');
+    let previewing = false;
+
+    // Oyna balandligini matnga moslash; ekranga sig'masa shriftni kichraytirish
+    const root = document.documentElement.style;
+    const MARGIN = 24; // #box margin (12px yuqori + 12px past)
+    let maxH = 0; // main process aytgan maksimal oyna balandligi
+    async function refit() {
+      if (!maxH) maxH = await window.bridge.fitWindow(0);
+      // O'lchash va kichraytirish sinxron — oraliq holat ekranda chizilmaydi
+      let fit = 1;
+      root.setProperty('--fit', fit);
+      let need = box.offsetHeight + MARGIN;
+      while (need > maxH && fit > 0.4) {
+        fit = +(fit - 0.05).toFixed(2);
+        root.setProperty('--fit', fit);
+        need = box.offsetHeight + MARGIN;
+      }
+      // Oyna faqat bir marta o'zgaradi; boshqa ekranga o'tilgan bo'lsa maxH yangilanadi
+      const m = await window.bridge.fitWindow(need);
+      if (m && m !== maxH) { maxH = m; refit(); }
+    }
+    document.fonts.addEventListener('loadingdone', () => refit());
+    let resizeTimer;
+    window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(refit, 150); });
+
+    // Har bir tarjima alohida qator; dir="auto" — urdu/fors kabi tillar o'ngdan chapga
+    function setTranslations(list) {
+      tr.replaceChildren(...list.filter(Boolean).map((text) => {
+        const d = document.createElement('div');
+        d.className = 'tr-line';
+        d.dir = 'auto';
+        d.textContent = text;
+        return d;
+      }));
+    }
+
+    function hexToRgba(hex, a) {
+      const n = parseInt(hex.slice(1), 16);
+      return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+    }
+
+    window.bridge.onVerse((p) => {
+      previewing = false;
+      if (!p) { box.classList.remove('visible'); return; }
+      box.classList.remove('visible');
+      setTimeout(() => {
+        ar.textContent = p.arabic || '';
+        setTranslations(p.translations || [p.translation]);
+        key.textContent = p.label || '';
+        refit().then(() => box.classList.add('visible'));
+      }, 150);
+    });
+
+    window.bridge.onStyle((s) => {
+      const r = document.documentElement.style;
+      const set = (k, v) => r.setProperty(k, v);
+      set('--ar-font', `"${s.arFont}", "Amiri Quran", "Geeza Pro", serif`);
+      set('--tr-font', s.trFont === 'system' ? '-apple-system, "Segoe UI", Roboto, sans-serif' : `"${s.trFont}", -apple-system, sans-serif`);
+      set('--ar-size', s.arSize + 'px');
+      set('--tr-size', s.trSize + 'px');
+      set('--tr-weight', s.trWeight);
+      set('--ar-color', s.arColor);
+      set('--tr-color', s.trColor);
+      set('--label-color', s.trColor);
+      set('--bg', hexToRgba(s.bgColor, s.bgAlpha));
+      set('--shadow', s.shadow + 'px');
+      set('--outline', s.outline + 'px');
+      set('--outline-color', s.outlineColor);
+      set('--radius', s.radius + 'px');
+      set('--pad', s.pad + 'px');
+      set('--line', s.line);
+      set('--opacity', s.opacity);
+      ar.classList.toggle('hidden', !s.showArabic);
+      tr.classList.toggle('hidden', !s.showTranslation);
+      key.classList.toggle('hidden', !s.showLabel);
+      refit();
+
+      // Sozlash paytida natijani ko'rish uchun namuna matn
+      if (s.preview && !box.classList.contains('visible')) {
+        previewing = true;
+        ar.textContent = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ';
+        setTranslations(['Mehribon va rahmli Allohning nomi bilan boshlayman.']);
+        key.textContent = 'Namuna';
+        refit();
+        box.classList.add('visible');
+        clearTimeout(window._pv);
+        window._pv = setTimeout(() => { if (previewing) box.classList.remove('visible'); }, 4000);
+      } else if (s.preview && previewing) {
+        clearTimeout(window._pv);
+        window._pv = setTimeout(() => { if (previewing) box.classList.remove('visible'); }, 4000);
+      }
+    });
+
+    window.bridge.onLocked((locked) => {
+      document.body.classList.toggle('unlocked', !locked);
+      if (!locked && !box.classList.contains('visible')) {
+        ar.textContent = 'بِسْمِ ٱللَّهِ';
+        setTranslations(['Namuna matn']);
+        refit();
+        box.classList.add('visible');
+      }
+    });
+  </script>
+</body>
+</html>

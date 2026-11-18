@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8" />
+  <title>Suzuvchi Quron</title>
+  <style>
+    :root {
+      --bg: #f6f7f9; --card: #fff; --text: #1b1f24; --muted: #667085; --accent: #0f766e; --border: #e4e7ec;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #111418; --card: #1a1f25; --text: #e6e9ee; --muted: #98a2b3; --accent: #2dd4bf; --border: #2a3038; }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 16px; background: var(--bg); color: var(--text);
+      font-family: -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 14px;
+    }
+    h1 { font-size: 18px; margin: 0 0 12px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+    label { display: block; color: var(--muted); font-size: 12px; margin: 8px 0 4px; }
+    select, input[type=range] { width: 100%; }
+    select { padding: 6px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); }
+    .row { display: flex; gap: 8px; margin-top: 10px; }
+    button {
+      flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--card); color: var(--text); cursor: pointer;
+    }
+    button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    button.active { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+    #status { color: var(--muted); font-size: 12px; margin-top: 8px; min-height: 16px; }
+    .checks { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 8px; }
+    .checks label { display: flex; gap: 6px; align-items: center; color: var(--text); font-size: 13px; margin: 0; }
+    .hint { color: var(--muted); font-size: 12px; line-height: 1.6; }
+    kbd { border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; font-size: 11px; }
+    details { border-top: 1px solid var(--border); padding-top: 6px; margin-top: 8px; }
+    details:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
+    summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+    .color { display: flex; align-items: center; gap: 8px; }
+    .color input { width: 40px; height: 28px; border: 1px solid var(--border); border-radius: 6px; padding: 0; background: none; cursor: pointer; }
+    .presets { display: flex; flex-wrap: wrap; gap: 6px; }
+    .presets button { flex: 0 0 auto; font-size: 12px; padding: 6px 10px; }
+    .val { color: var(--text); }
+
+    /* Qidiruvli tanlagich */
+    .picker-row { display: flex; gap: 6px; align-items: flex-start; }
+    .picker-row .picker { flex: 1; min-width: 0; }
+    .picker-row .nav { flex: 0 0 36px; padding: 8px 0; font-size: 16px; line-height: 1; }
+    .picker { position: relative; }
+    .picker-current {
+      width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      text-align: left; padding: 8px 10px;
+    }
+    .picker-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .picker-caret { color: var(--muted); }
+    .picker.open .picker-current { border-color: var(--accent); }
+    .picker-pop {
+      margin-top: 4px; border: 1px solid var(--border); border-radius: 10px;
+      background: var(--card); overflow: hidden;
+    }
+    .picker-search {
+      width: 100%; padding: 9px 10px; border: 0; border-bottom: 1px solid var(--border);
+      background: transparent; color: var(--text); font-size: 14px; outline: none;
+    }
+    .picker-list { list-style: none; margin: 0; padding: 4px; max-height: 280px; overflow-y: auto; }
+    .picker-list li {
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      padding: 7px 8px; border-radius: 6px; cursor: pointer;
+    }
+    .picker-list li.active { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+    .picker-list li.selected .picker-main { color: var(--accent); font-weight: 600; }
+    .picker-main small { display: block; color: var(--muted); font-size: 11px; font-weight: 400; }
+    .picker-right { font-family: "Geeza Pro", serif; font-size: 16px; color: var(--muted); }
+    .picker-empty { color: var(--muted); cursor: default; }
+    .picker-check {
+      flex: 0 0 18px; height: 18px; border: 1.5px solid var(--border); border-radius: 5px;
+      display: inline-flex; align-items: center; justify-content: center; font-size: 12px; color: #fff;
+    }
+    .picker-list li.selected .picker-check { background: var(--accent); border-color: var(--accent); }
+    .picker-multi .picker-list li { justify-content: flex-start; }
+    .picker-multi .picker-main { flex: 1; }
+    .picker-order {
+      flex: 0 0 auto; font-size: 11px; color: var(--accent); border: 1px solid var(--accent);
+      border-radius: 10px; padding: 0 6px;
+    }
+    .picker-foot {
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      padding: 6px 8px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px;
+    }
+    .picker-foot button { flex: 0 0 auto; padding: 5px 14px; }
+    .picker-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .picker-chips:not(:empty) { margin-top: 6px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 14px;
+      border: 1px solid var(--border); font-size: 12px; max-width: 100%;
+    }
+    .chip button { flex: 0 0 auto; border: 0; background: none; padding: 0 6px; color: var(--muted); font-size: 14px; }
+    .chip button:hover { color: var(--text); }
+
+    /* Yoqish/o'chirish tugmasi */
+    .label-row { display: flex; justify-content: space-between; align-items: center; margin: 8px 0 4px; }
+    .label-row > label:first-child { margin: 0; }
+    .switch { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; color: var(--muted); font-size: 12px; }
+    .switch input { display: none; }
+    .switch .slider {
+      width: 30px; height: 18px; border-radius: 9px; background: var(--border); position: relative; transition: background .2s;
+    }
+    .switch .slider::after {
+      content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+      background: #fff; transition: transform .2s;
+    }
+    .switch input:checked + .slider { background: var(--accent); }
+    .switch input:checked + .slider::after { transform: translateX(12px); }
+    #translationPicker.off .picker-current { opacity: .5; }
+
+    /* Tezkor tugmalar */
+    .sc-row { display: grid; grid-template-columns: 1fr 150px auto auto; gap: 6px; align-items: center; padding: 4px 0; }
+    .sc-title { font-size: 13px; }
+    .sc-key {
+      padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg);
+      color: var(--text); text-align: center; font-size: 13px; cursor: pointer; min-height: 30px;
+    }
+    .sc-key.recording { border-color: var(--accent); color: var(--accent); }
+    .sc-key.off { color: var(--muted); }
+    .sc-row button.small { flex: 0 0 auto; padding: 5px 8px; font-size: 12px; }
+    .sc-err { grid-column: 1 / -1; color: #f97066; font-size: 11px; margin-top: -2px; }
+  </style>
+</head>
+<body>
+  <h1>Suzuvchi Quron</h1>
+
+  <div class="card">
+    <label>Sura</label>
+    <input type="hidden" id="chapter" value="1" />
+    <div class="picker-row">
+      <button id="prevSurah" class="nav" title="Oldingi sura">‹</button>
+      <div id="chapterPicker"></div>
+      <button id="nextSurah" class="nav" title="Keyingi sura">›</button>
+    </div>
+
+    <label>Qori</label>
+    <input type="hidden" id="reciter" value="Alafasy_128kbps" />
+    <div id="reciterPicker"></div>
+
+    <div class="label-row">
+      <label>Tarjima</label>
+      <label class="switch" title="Tarjimani ko'rsatish / yashirish">
+        <input id="showTr" data-style type="checkbox" checked />
+        <span class="slider"></span>
+        <span class="switch-text">Ko'rsatish</span>
+      </label>
+    </div>
+    <input type="hidden" id="translation" value="55" />
+    <div id="translationPicker"></div>
+
+    <div class="row">
+      <button id="load" class="primary">Yuklash va tinglash</button>
+    </div>
+    <div class="row">
+      <button id="prevBtn" title="Oldingi oyat">⏮</button>
+      <button id="playBtn" title="Play / pauza">▶</button>
+      <button id="nextBtn" title="Keyingi oyat">⏭</button>
+    </div>
+    <div class="row">
+      <button id="replayBtn" title="Joriy oyatni boshidan (sura tugagan bo'lsa — surani boshidan)">↺ Qayta</button>
+      <button id="repeatBtn" title="Takrorlash rejimi">🔁 Takrorlash: o'chiq</button>
+    </div>
+    <label for="volume">Ovoz</label>
+    <input id="volume" type="range" min="0" max="100" value="100" />
+    <div id="status"></div>
+    <div class="row" style="align-items:center">
+      <span id="cacheInfo" class="hint" style="flex:1"></span>
+      <button id="clearCacheBtn" style="flex:0 0 auto;font-size:12px">Keshni tozalash</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <details open>
+      <summary>Tayyor uslublar</summary>
+      <div class="presets">
+        <button data-preset="classic">Klassik</button>
+        <button data-preset="contrast">Yuqori kontrast</button>
+        <button data-preset="gold">Oltin</button>
+        <button data-preset="clear">Fonsiz</button>
+        <button data-preset="light">Yorug'</button>
+        <button data-preset="green">Yashil</button>
+      </div>
+    </details>
+
+    <details open>
+      <summary>Shrift</summary>
+      <label for="arFont">Arabcha shrift</label>
+      <select id="arFont" data-style>
+        <option value="Amiri Quran">Amiri Quran</option>
+        <option value="Amiri">Amiri</option>
+        <option value="Scheherazade New">Scheherazade New</option>
+        <option value="Noto Naskh Arabic">Noto Naskh Arabic</option>
+        <option value="Lateef">Lateef</option>
+        <option value="Reem Kufi">Reem Kufi (kufiy)</option>
+        <option value="Aref Ruqaa">Aref Ruqaa (ruq'a)</option>
+        <option value="Geeza Pro">Geeza Pro (macOS)</option>
+      </select>
+      <label for="trFont">Tarjima shrifti</label>
+      <select id="trFont" data-style>
+        <option value="system">Tizim shrifti</option>
+        <option value="Inter">Inter</option>
+        <option value="Roboto">Roboto</option>
+        <option value="Montserrat">Montserrat</option>
+        <option value="Nunito">Nunito</option>
+        <option value="PT Sans">PT Sans</option>
+        <option value="Merriweather">Merriweather (serif)</option>
+        <option value="Noto Serif">Noto Serif (serif)</option>
+      </select>
+      <div class="grid2">
+        <div>
+          <label>Arabcha o'lchami: <span class="val" id="arSizeVal"></span>px</label>
+          <input id="arSize" data-style type="range" min="20" max="90" value="40" />
+        </div>
+        <div>
+          <label>Tarjima o'lchami: <span class="val" id="trSizeVal"></span>px</label>
+          <input id="trSize" data-style type="range" min="12" max="48" value="20" />
+        </div>
+      </div>
+      <div class="grid2">
+        <div>
+          <label for="trWeight">Tarjima qalinligi</label>
+          <select id="trWeight" data-style>
+            <option value="400">Oddiy</option>
+            <option value="600">Yarim qalin</option>
+            <option value="700">Qalin</option>
+          </select>
+        </div>
+        <div>
+          <label>Qator oralig'i: <span class="val" id="lineVal"></span></label>
+          <input id="line" data-style type="range" min="1.2" max="2.6" step="0.1" value="1.9" />
+        </div>
+      </div>
+    </details>
+
+    <details open>
+      <summary>Ranglar</summary>
+      <div class="grid2">
+        <label class="color"><input id="arColor" data-style type="color" value="#ffffff" /> Arabcha matn</label>
+        <label class="color"><input id="trColor" data-style type="color" value="#e8eef5" /> Tarjima</label>
+        <label class="color"><input id="bgColor" data-style type="color" value="#0a0e14" /> Fon</label>
+        <label class="color"><input id="outlineColor" data-style type="color" value="#000000" /> Kontur</label>
+      </div>
+    </details>
+
+    <details open>
+      <summary>Kontrast va fon</summary>
+      <div class="grid2">
+        <div>
+          <label>Fon zichligi: <span class="val" id="bgAlphaVal"></span>%</label>
+          <input id="bgAlpha" data-style type="range" min="0" max="100" value="55" />
+        </div>
+        <div>
+          <label>Umumiy shaffoflik: <span class="val" id="opacityVal"></span>%</label>
+          <input id="opacity" data-style type="range" min="20" max="100" value="100" />
+        </div>
+        <div>
+          <label>Soya: <span class="val" id="shadowVal"></span>px</label>
+          <input id="shadow" data-style type="range" min="0" max="20" value="3" />
+        </div>
+        <div>
+          <label>Kontur qalinligi: <span class="val" id="outlineVal"></span>px</label>
+          <input id="outline" data-style type="range" min="0" max="6" step="0.5" value="0" />
+        </div>
+        <div>
+          <label>Burchak radiusi: <span class="val" id="radiusVal"></span>px</label>
+          <input id="radius" data-style type="range" min="0" max="40" value="16" />
+        </div>
+        <div>
+          <label>Ichki bo'shliq: <span class="val" id="padVal"></span>px</label>
+          <input id="pad" data-style type="range" min="0" max="40" value="14" />
+        </div>
+      </div>
+    </details>
+
+    <details open>
+      <summary>Ko'rinish</summary>
+      <div class="checks">
+        <label><input id="showAr" data-style type="checkbox" checked /> Arabcha</label>
+        <label><input id="showLabel" data-style type="checkbox" checked /> Sura va oyat raqami</label>
+      </div>
+      <div class="row">
+        <button id="lockBtn">Joyini o'zgartirish</button>
+        <button id="visBtn">Yashirish</button>
+      </div>
+    </details>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>Tezkor tugmalar</summary>
+      <p class="hint" style="margin:4px 0 8px">
+        Tugmalar har qanday app ichida ishlaydi. Boshqa app'ga xalaqit bermasligi uchun standart sifatida
+        <kbd>⌃</kbd><kbd>⌥</kbd> (Control+Option) ishlatilgan. O'zgartirish uchun maydonni bosib, yangi kombinatsiyani bosing.
+        Klaviaturasiz boshqarish uchun menu bar'dagi ikonkadan foydalaning.
+      </p>
+      <div id="shortcutList"></div>
+    </details>
+  </div>
+
+  <script src="picker.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>
