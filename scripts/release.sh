@@ -43,6 +43,11 @@ Yoki terminalda: `xattr -cr "/Applications/Suzuvchi Quron.app"`
 MD
 )
 
+# Ixtiyoriy: WHATSNEW="- yangilik 1\n- yangilik 2" bash scripts/release.sh
+if [[ -n "${WHATSNEW:-}" ]]; then
+  NOTES="$(printf '## Yangiliklar\n\n%b\n\n%s' "$WHATSNEW" "$NOTES")"
+fi
+
 if gh release view "$TAG" --repo "$REPO" > /dev/null 2>&1; then
   echo "Release ${TAG} bor — fayllar va matn yangilanmoqda..."
   gh release upload "$TAG" "${FILES[@]}" --repo "$REPO" --clobber
