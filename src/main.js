@@ -1,6 +1,22 @@
 const { app, BrowserWindow, ipcMain, globalShortcut, screen, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const I18N = require('./i18n');
+
+// Ilova avval "Suzuvchi Quron" deb atalgan: eski sozlamalar, tarix va keshni yangi papkaga ko'chiramiz
+(function migrateUserData() {
+  try {
+    const newDir = app.getPath('userData');
+    const oldDir = path.join(app.getPath('appData'), 'Suzuvchi Quron');
+    if (fs.existsSync(newDir) || !fs.existsSync(oldDir)) return;
+    fs.cpSync(oldDir, newDir, {
+      recursive: true,
+      filter: (src) => !/^Singleton/.test(path.basename(src)), // boshqa nusxaning qulf fayllari
+    });
+  } catch (e) {
+    console.error('userData migration failed:', e);
+  }
+})();
 
 let mainWin = null;
 // Har bir monitor uchun alohida overlay oyna: displayId -> BrowserWindow
@@ -14,9 +30,17 @@ let lastStyle = null;
 
 // Oddiy sozlamalar (userData/settings.json)
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
-let settings = { allScreens: true };
+let settings = { allScreens: true, lang: null };
+let t = I18N.make('en');
 function loadSettings() {
   try { settings = { ...settings, ...JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) }; } catch {}
+  // Til: saqlangan bo'lmasa — tizim tili o'zbekcha bo'lsa uz, aks holda inglizcha
+  if (!I18N.STR[settings.lang]) {
+    const sys = [app.getLocale(), ...(app.getPreferredSystemLanguages?.() || [])].join(',').toLowerCase();
+    const country = (app.getLocaleCountryCode?.() || '').toUpperCase();
+    settings.lang = /(^|,)uz/.test(sys) || country === 'UZ' ? 'uz' : 'en';
+  }
+  t = I18N.make(settings.lang);
 }
 function saveSettings() {
   try { fs.writeFileSync(settingsFile(), JSON.stringify(settings, null, 2)); } catch (e) { console.error(e); }
@@ -28,7 +52,7 @@ function createMainWindow() {
   mainWin = new BrowserWindow({
     width: 500,
     height: 820,
-    title: 'Suzuvchi Quron',
+    title: 'Floating Quran',
     icon: path.join(__dirname, 'assets', 'icon.png'), // Windows/Linux oyna ikonkasi
     webPreferences: { preload: path.join(__dirname, 'preload.js'), backgroundThrottling: false },
   });
@@ -159,11 +183,11 @@ function showMainWindow() {
 // --- Global hotkey'lar: foydalanuvchi o'zgartira oladi, userData/shortcuts.json da saqlanadi ---
 // Standart: ⌃⌥ (Control+Option) — boshqa app'lar deyarli ishlatmaydi
 const SHORTCUT_ACTIONS = {
-  toggleSubtitle: { title: 'Subtitle\'ni yashirish / ko\'rsatish', def: 'Control+Alt+S', run: () => toggleOverlayVisible() },
-  playPause:      { title: 'Play / pauza',                        def: 'Control+Alt+P', run: () => playerCmd('toggle') },
-  nextAyah:       { title: 'Keyingi oyat',                        def: 'Control+Alt+N', run: () => playerCmd('next') },
-  prevAyah:       { title: 'Oldingi oyat',                        def: 'Control+Alt+B', run: () => playerCmd('prev') },
-  moveSubtitle:   { title: 'Subtitle joyini o\'zgartirish',       def: 'Control+Alt+M', run: () => setOverlayLocked(!overlayLocked) },
+  toggleSubtitle: { key: 'scToggleSubtitle', def: 'Control+Alt+S', run: () => toggleOverlayVisible() },
+  playPause:      { key: 'scPlayPause',      def: 'Control+Alt+P', run: () => playerCmd('toggle') },
+  nextAyah:       { key: 'scNextAyah',       def: 'Control+Alt+N', run: () => playerCmd('next') },
+  prevAyah:       { key: 'scPrevAyah',       def: 'Control+Alt+B', run: () => playerCmd('prev') },
+  moveSubtitle:   { key: 'scMoveSubtitle',   def: 'Control+Alt+M', run: () => setOverlayLocked(!overlayLocked) },
 };
 const shortcutsFile = () => path.join(app.getPath('userData'), 'shortcuts.json');
 let shortcuts = {};      // action -> accelerator ('' = o'chirilgan)
@@ -193,7 +217,7 @@ function registerShortcuts() {
 
 function shortcutState() {
   return Object.fromEntries(Object.entries(SHORTCUT_ACTIONS).map(([k, a]) => [k, {
-    title: a.title, accel: shortcuts[k] || '', def: a.def, error: !!shortcutErrors[k],
+    title: t(a.key), accel: shortcuts[k] || '', def: a.def, error: !!shortcutErrors[k],
   }]));
 }
 
@@ -205,7 +229,7 @@ function createTray() {
   const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'trayTemplate.png'));
   icon.setTemplateImage(true);
   tray = new Tray(icon);
-  tray.setToolTip('Suzuvchi Quron');
+  tray.setToolTip('Floating Quran');
   updateTray();
 }
 
@@ -216,16 +240,16 @@ function updateTray() {
   const multi = screen.getAllDisplays().length > 1;
   tray.setContextMenu(Menu.buildFromTemplate([
     ...(playerState.title ? [{ label: playerState.title, enabled: false }, { type: 'separator' }] : []),
-    { label: visible ? 'Subtitle\'ni yashirish' : 'Subtitle\'ni ko\'rsatish', accelerator: accel('toggleSubtitle'), click: toggleOverlayVisible },
-    { label: playerState.playing ? 'Pauza' : 'Play', accelerator: accel('playPause'), click: () => playerCmd('toggle') },
-    { label: 'Keyingi oyat', accelerator: accel('nextAyah'), click: () => playerCmd('next') },
-    { label: 'Oldingi oyat', accelerator: accel('prevAyah'), click: () => playerCmd('prev') },
+    { label: visible ? t('trayHide') : t('trayShow'), accelerator: accel('toggleSubtitle'), click: toggleOverlayVisible },
+    { label: playerState.playing ? t('trayPause') : t('trayPlay'), accelerator: accel('playPause'), click: () => playerCmd('toggle') },
+    { label: t('scNextAyah'), accelerator: accel('nextAyah'), click: () => playerCmd('next') },
+    { label: t('scPrevAyah'), accelerator: accel('prevAyah'), click: () => playerCmd('prev') },
     { type: 'separator' },
-    { label: overlayLocked ? 'Subtitle joyini o\'zgartirish' : 'Subtitle joyini qulflash', accelerator: accel('moveSubtitle'), click: () => setOverlayLocked(!overlayLocked) },
-    ...(multi ? [{ label: 'Barcha monitorlarda', type: 'checkbox', checked: settings.allScreens, click: (item) => setAllScreens(item.checked) }] : []),
-    { label: 'Asosiy oynani ochish', click: showMainWindow },
+    { label: overlayLocked ? t('trayMove') : t('trayLock'), accelerator: accel('moveSubtitle'), click: () => setOverlayLocked(!overlayLocked) },
+    ...(multi ? [{ label: t('allScreens'), type: 'checkbox', checked: settings.allScreens, click: (item) => setAllScreens(item.checked) }] : []),
+    { label: t('trayOpen'), click: showMainWindow },
     { type: 'separator' },
-    { label: 'Chiqish', role: 'quit' },
+    { label: t('trayQuit'), role: 'quit' },
   ]));
 }
 
@@ -291,6 +315,19 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('shortcuts:get', () => shortcutState());
+
+  // Interfeys tili: oynalar ochilishida sinxron so'raladi, almashtirilsa hammasi qayta yuklanadi
+  ipcMain.on('i18n:lang', (e) => { e.returnValue = settings.lang; });
+  ipcMain.on('i18n:region', (e) => { e.returnValue = (app.getLocaleCountryCode?.() || '').toUpperCase(); });
+  ipcMain.on('i18n:set', (_e, lang) => {
+    if (!I18N.STR[lang] || lang === settings.lang) return;
+    settings.lang = lang;
+    t = I18N.make(lang);
+    saveSettings();
+    updateTray();
+    mainWin?.webContents.reload();
+    for (const w of overlayWindows()) w.webContents.reload();
+  });
   // accel: yangi kombinatsiya, '' = o'chirish, null = standartga qaytarish
   ipcMain.handle('shortcuts:set', (_e, action, accel) => {
     if (!(action in SHORTCUT_ACTIONS)) return shortcutState();

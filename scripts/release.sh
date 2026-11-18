@@ -12,40 +12,40 @@ VERSION="$(node -p "require('./package.json').version")"
 TAG="v${VERSION}"
 
 shopt -s nullglob
-FILES=(dist/SuzuvchiQuron-"${VERSION}"-*.{dmg,exe,AppImage,deb})
+FILES=(dist/FloatingQuran-"${VERSION}"-*.{dmg,exe,AppImage,deb})
 if (( ${#FILES[@]} == 0 )); then
   echo "dist/ da ${VERSION} versiya installer'lari topilmadi. Avval: npm run dist:all" >&2
   exit 1
 fi
 
 NOTES=$(cat <<'MD'
-## O'rnatish
+## Install
 
-| Platforma | Fayl |
+| Platform | File |
 |---|---|
 | macOS (Apple Silicon: M1/M2/M3/M4) | `*-mac-arm64.dmg` |
 | macOS (Intel) | `*-mac-x64.dmg` |
 | Windows 10/11 | `*-win-x64.exe` |
 | Linux | `*-linux-x86_64.AppImage` |
 
-**macOS:** ilova Apple tomonidan notarizatsiya qilinmagan:
-1. `.dmg` ni oching, **Suzuvchi Quron** ni **Applications** ga torting.
-2. Ilovani oching → *"Apple could not verify..."* → **Done**.
-3. **System Settings → Privacy & Security** → **Open Anyway** → parol.
+**macOS:** the app is not notarized by Apple yet:
+1. Open the `.dmg` and drag **Floating Quran** into **Applications**.
+2. Open the app → *"Apple could not verify..."* → **Done**.
+3. **System Settings → Privacy & Security** → **Open Anyway** → password.
 
-Yoki terminalda: `xattr -cr "/Applications/Suzuvchi Quron.app"`
+Or in Terminal: `xattr -cr "/Applications/Floating Quran.app"`
 
-> `.app` ni zip qilib Telegram orqali yubormang — ilova buziladi. `.dmg` ni yuboring.
+> Do not zip the `.app` and send it via messengers — it breaks. Share the `.dmg`.
 
-**Windows:** SmartScreen ogohlantirsa — **More info → Run anyway**.
+**Windows:** if SmartScreen warns — **More info → Run anyway**.
 
-**Linux:** `chmod +x SuzuvchiQuron-*.AppImage && ./SuzuvchiQuron-*.AppImage`
+**Linux:** `chmod +x FloatingQuran-*.AppImage && ./FloatingQuran-*.AppImage`
 MD
 )
 
-# Ixtiyoriy: WHATSNEW="- yangilik 1\n- yangilik 2" bash scripts/release.sh
+# Optional: WHATSNEW="- change 1\n- change 2" bash scripts/release.sh
 if [[ -n "${WHATSNEW:-}" ]]; then
-  NOTES="$(printf '## Yangiliklar\n\n%b\n\n%s' "$WHATSNEW" "$NOTES")"
+  NOTES="$(printf "## What's new\n\n%b\n\n%s" "$WHATSNEW" "$NOTES")"
 fi
 
 if gh release view "$TAG" --repo "$REPO" > /dev/null 2>&1; then
@@ -55,7 +55,7 @@ if gh release view "$TAG" --repo "$REPO" > /dev/null 2>&1; then
 else
   echo "Release ${TAG} yaratilmoqda..."
   gh release create "$TAG" "${FILES[@]}" --repo "$REPO" --target main \
-    --title "Suzuvchi Quron ${VERSION}" --notes "$NOTES"
+    --title "Floating Quran ${VERSION}" --notes "$NOTES"
 fi
 
 echo "Tayyor: https://github.com/${REPO}/releases/tag/${TAG}"

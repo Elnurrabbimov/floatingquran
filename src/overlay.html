@@ -79,7 +79,7 @@
     .hidden { display: none; }
     body.unlocked #box { outline: 2px dashed #4fc3f7; -webkit-app-region: drag; cursor: move; }
     body.unlocked::before {
-      content: "Sudrab joylashtiring · Cmd/Ctrl+Shift+L bilan qulflang";
+      content: var(--drag-hint);
       position: fixed; top: 6px; left: 50%; transform: translateX(-50%);
       background: #4fc3f7; color: #000; font: 12px -apple-system, sans-serif; padding: 3px 10px; border-radius: 8px;
     }
@@ -91,7 +91,9 @@
     <div id="tr"></div>
     <div id="key"></div>
   </div>
+  <script src="i18n.js"></script>
   <script>
+    document.documentElement.style.setProperty('--drag-hint', JSON.stringify(t('dragHint')));
     const box = document.getElementById('box');
     const ar = document.getElementById('ar');
     const tr = document.getElementById('tr');
@@ -294,8 +296,8 @@
       if (s.preview && !box.classList.contains('visible')) {
         previewing = true;
         ar.textContent = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ';
-        setTranslations(['Mehribon va rahmli Allohning nomi bilan boshlayman.']);
-        key.textContent = 'Namuna';
+        setTranslations([t('sampleText')]);
+        key.textContent = t('sample');
         refit();
         box.classList.add('visible');
         clearTimeout(window._pv);
@@ -310,7 +312,7 @@
       document.body.classList.toggle('unlocked', !locked);
       if (!locked && !box.classList.contains('visible')) {
         ar.textContent = 'بِسْمِ ٱللَّهِ';
-        setTranslations(['Namuna matn']);
+        setTranslations([t('sampleShort')]);
         refit();
         box.classList.add('visible');
       }

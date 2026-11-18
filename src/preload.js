@@ -1,6 +1,9 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('bridge', {
+  lang: ipcRenderer.sendSync('i18n:lang'),
+  region: ipcRenderer.sendSync('i18n:region'),
+  setLang: (lang) => ipcRenderer.send('i18n:set', lang),
   showVerse: (payload) => ipcRenderer.send('verse:show', payload),
   sendTiming: (payload) => ipcRenderer.send('verse:timing', payload),
   sendClock: (payload) => ipcRenderer.send('verse:clock', payload),

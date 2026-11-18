@@ -11,7 +11,7 @@ function createPicker({ root, hiddenInput, placeholder, onSelect, multiple = fal
     <div class="picker-pop" hidden>
       <input type="text" class="picker-search" placeholder="${placeholder}" spellcheck="false" autocomplete="off" />
       <ul class="picker-list" role="listbox"></ul>
-      ${multiple ? '<div class="picker-foot"><span class="picker-count"></span><button type="button" class="picker-done">Tayyor</button></div>' : ''}
+      ${multiple ? `<div class="picker-foot"><span class="picker-count"></span><button type="button" class="picker-done">${t('done')}</button></div>` : ''}
     </div>`;
   const btn = root.querySelector('.picker-current');
   const labelEl = root.querySelector('.picker-label');
@@ -61,8 +61,8 @@ function createPicker({ root, hiddenInput, placeholder, onSelect, multiple = fal
             ${it.right ? `<span class="picker-right">${esc(it.right)}</span>` : ''}
           </li>`;
         }).join('')
-      : '<li class="picker-empty">Hech narsa topilmadi</li>';
-    if (countEl) countEl.textContent = `Tanlangan: ${selected.length}${Number.isFinite(max) ? ` / ${max}` : ''}`;
+      : `<li class="picker-empty">${t('nothingFound')}</li>`;
+    if (countEl) countEl.textContent = t('selected', { n: `${selected.length}${Number.isFinite(max) ? ` / ${max}` : ''}` });
     list.querySelector('li.active')?.scrollIntoView({ block: 'nearest' });
   }
 
@@ -74,7 +74,7 @@ function createPicker({ root, hiddenInput, placeholder, onSelect, multiple = fal
       labelEl.textContent = it ? (it.right ? `${it.label}  ·  ${it.right}` : it.label) : '';
       return;
     }
-    labelEl.textContent = sel.length === 0 ? 'Tanlanmagan' : sel.length === 1 ? sel[0].label : `${sel.length} ta tarjima tanlangan`;
+    labelEl.textContent = sel.length === 0 ? t('none') : sel.length === 1 ? sel[0].label : t('nTranslations', { n: sel.length });
     chips.innerHTML = sel.length > 1
       ? sel.map((it) => `<span class="chip">${esc(it.short || it.label)}<button type="button" data-v="${esc(it.value)}" title="Olib tashlash">×</button></span>`).join('')
       : '';

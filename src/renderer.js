@@ -4,6 +4,9 @@ const API = 'https://api.qurancdn.com/api/qdc';
 const AUDIO = 'https://everyayah.com/data';
 
 const $ = (id) => document.getElementById(id);
+// Interfeys tili (i18n.js): statik matnlar
+I18N.apply(t, document);
+document.documentElement.lang = LANG;
 const statusEl = $('status');
 
 let queue = [];        // [{ file: '002001', label, arabic, translation }]
@@ -45,7 +48,7 @@ async function getJSON(url) {
 async function showCacheSize() {
   try {
     const { usage } = await navigator.storage.estimate();
-    $('cacheInfo').textContent = `Kesh hajmi: ${(usage / 1024 / 1024).toFixed(1)} MB`;
+    $('cacheInfo').textContent = t('cacheSize', { mb: (usage / 1024 / 1024).toFixed(1) });
   } catch {}
 }
 
@@ -53,7 +56,7 @@ async function clearCache() {
   try { await caches.delete(CACHE_NAME); } catch {}
   loadedKey = null;
   showCacheSize();
-  setStatus('Kesh tozalandi.');
+  setStatus(t('cacheCleared'));
 }
 
 function stripHtml(s) {
@@ -94,6 +97,15 @@ const RECITERS = [
   ['Nasser_Alqatami_128kbps', 'Nosir al-Qatomiy', 'nasser qatami qatomi'],
 ];
 
+const RECITER_EN = {
+  Alafasy_128kbps: 'Mishary Rashid Alafasy', Abdul_Basit_Murattal_192kbps: 'Abdul Basit Abdul Samad',
+  'Abdurrahmaan_As-Sudais_192kbps': 'Abdul Rahman Al-Sudais', Husary_128kbps: 'Mahmoud Khalil Al-Husary',
+  Minshawy_Murattal_128kbps: 'Mohamed Siddiq Al-Minshawi', 'Saood_ash-Shuraym_128kbps': 'Saud Al-Shuraim',
+  'Abu_Bakr_Ash-Shaatree_128kbps': 'Abu Bakr Al-Shatri', Hani_Rifai_192kbps: 'Hani Ar-Rifai',
+  'Yasser_Ad-Dussary_128kbps': 'Yasser Al-Dosari', MaherAlMuaiqly128kbps: 'Maher Al-Muaiqly',
+  Ghamadi_40kbps: 'Saad Al-Ghamdi', Nasser_Alqatami_128kbps: 'Nasser Al-Qatami',
+};
+
 // Quran.com recitation id (4-element) — so'zma-so'z vaqtlar shu orqali olinadi
 const QDC_ID = Object.fromEntries(RECITERS.filter((r) => r[3]).map((r) => [r[0], r[3]]));
 
@@ -102,14 +114,14 @@ let chapters = [];
 const chapterPicker = createPicker({
   root: $('chapterPicker'),
   hiddenInput: $('chapter'),
-  placeholder: 'Raqam yoki nom: 36, yosin, mulk, الملك ...',
+  placeholder: t('phSurah'),
   onSelect: () => { updateAyahRange(true); loadSurah(); },
 });
 
 const reciterPicker = createPicker({
   root: $('reciterPicker'),
   hiddenInput: $('reciter'),
-  placeholder: 'Qori ismi: afasy, sudays, husariy ...',
+  placeholder: t('phReciter'),
   onSelect: () => {
     dropPreloaded();
     savePrefs();
@@ -117,9 +129,10 @@ const reciterPicker = createPicker({
     if (queue.length && index >= 0) playIndex(index);
   },
 });
-reciterPicker.setItems(RECITERS.map(([value, label, extra]) => ({
-  value, label, search: [normalize(label), ...extra.split(' ').map(normalize)],
-})));
+reciterPicker.setItems(RECITERS.map(([value, uzLabel, extra]) => {
+  const label = LANG === 'uz' ? uzLabel : RECITER_EN[value] || uzLabel;
+  return { value, label, search: [normalize(label), normalize(uzLabel), normalize(RECITER_EN[value]), ...extra.split(' ').map(normalize)] };
+}));
 
 // --- Tarjima tanlagichi: API'dagi barcha tillar ---
 const LANG_UZ = {
@@ -133,17 +146,48 @@ const LANG_UZ = {
   ukrainian: 'Ukraincha', thai: 'Taycha', vietnamese: 'Vyetnamcha', swahili: 'Suaxilicha', somali: 'Somalicha',
 };
 // Ro'yxatda birinchi chiqadigan tillar
-const LANG_ORDER = ['uzbek', 'russian', 'english', 'turkish', 'kazakh', 'tajik', 'kyrgyz', 'azeri', 'tatar', 'uyghur', 'arabic'];
+const LANG_ORDER = LANG === 'uz'
+  ? ['uzbek', 'russian', 'english', 'turkish', 'kazakh', 'tajik', 'kyrgyz', 'azeri', 'tatar', 'uyghur', 'arabic']
+  : ['english', 'arabic', 'urdu', 'indonesian', 'turkish', 'french', 'spanish', 'german', 'russian', 'bengali', 'malay', 'persian', 'uzbek'];
+
+// Birinchi ishga tushishda tarjima tizim tiliga qarab tanlanadi
+let FIRST_RUN = false;
+try { FIRST_RUN = !localStorage.getItem('prefs'); } catch {}
+// Har bir til uchun tavsiya etilgan tarjima (Quran.com id)
+const PREFERRED_TR = {
+  en: 20, uz: 55, ru: 45, tr: 77, id: 33, ur: 234, fr: 31, es: 83, de: 27, bn: 161, ms: 39, fa: 29,
+  kk: 222, tg: 139, az: 75, it: 153, pt: 103, nl: 235, bs: 126, sq: 88, sw: 49, sv: 48, zh: 56, ja: 218,
+  ko: 219, th: 230, vi: 220, hi: 122, ps: 118, so: 46, ta: 133, tt: 53,
+};
+
+// Mamlakat -> tarjima tili (mintaqa tizim tilidan ustun: masalan en-UZ -> o'zbekcha)
+const REGION_LANG = {
+  UZ: 'uz', RU: 'ru', BY: 'ru', KG: 'ru', KZ: 'kk', TJ: 'tg', AZ: 'az', TR: 'tr', ID: 'id', MY: 'ms', BN: 'ms',
+  PK: 'ur', BD: 'bn', IR: 'fa', AF: 'fa', FR: 'fr', BE: 'fr', SN: 'fr', ML: 'fr', DE: 'de', AT: 'de', CH: 'de',
+  ES: 'es', MX: 'es', AR: 'es', CO: 'es', IT: 'it', PT: 'pt', BR: 'pt', NL: 'nl', BA: 'bs', AL: 'sq', XK: 'sq',
+  TZ: 'sw', KE: 'sw', SE: 'sv', CN: 'zh', JP: 'ja', KR: 'ko', TH: 'th', VN: 'vi', SO: 'so', LK: 'ta',
+};
+
+function defaultTranslation(items, isoOf) {
+  const wanted = [REGION_LANG[window.bridge.region], ...(navigator.languages || []), navigator.language, LANG]
+    .filter(Boolean).map((l) => l.toLowerCase().split('-')[0]);
+  for (const iso of wanted) {
+    if (PREFERRED_TR[iso] && items.some((it) => it.value === PREFERRED_TR[iso])) return String(PREFERRED_TR[iso]);
+    const any = items.find((it) => isoOf(it) === iso);
+    if (any) return String(any.value);
+  }
+  return '20'; // Saheeh International
+}
 
 const MAX_TRANSLATIONS = 4;
 let trChangeTimer;
 const translationPicker = createPicker({
   root: $('translationPicker'),
   hiddenInput: $('translation'),
-  placeholder: 'Til yoki tarjimon: rus, english, türk, kuliev ...',
+  placeholder: t('phTranslation'),
   multiple: true,
   max: MAX_TRANSLATIONS,
-  onLimit: (max) => setStatus(`Ko'pi bilan ${max} ta tarjima tanlash mumkin.`),
+  onLimit: (max) => setStatus(t('trLimit', { max })),
   // Bir nechtasini ketma-ket belgilaganda har birida yuklamaslik uchun kichik kechikish
   onSelect: () => { clearTimeout(trChangeTimer); trChangeTimer = setTimeout(changeTranslation, 350); },
 });
@@ -155,7 +199,7 @@ async function loadTranslations() {
   ]);
   const langs = Object.fromEntries(lg.languages.map((l) => [l.name.toLowerCase(), l]));
   const rank = (name) => { const i = LANG_ORDER.indexOf(name); return i < 0 ? 999 : i; };
-  const langTitle = (name) => LANG_UZ[name] || name.charAt(0).toUpperCase() + name.slice(1);
+  const langTitle = (name) => (LANG === 'uz' && LANG_UZ[name]) || name.charAt(0).toUpperCase() + name.slice(1);
 
   const items = tr.translations
     .filter((t) => t.language_name)
@@ -170,10 +214,12 @@ async function loadTranslations() {
         label: `${langTitle(t.language_name)} — ${t.name}`,
         short: `${langTitle(t.language_name)} · ${t.author_name || t.name}`,
         sub: `${t.language_name}${native}`,
+        iso: l.iso_code,
         search: [t.language_name, langTitle(t.language_name), l.native_name, l.iso_code, t.name, t.author_name]
           .filter(Boolean).map(normalize),
       };
     });
+  if (FIRST_RUN) $('translation').value = defaultTranslation(items, (it) => it.iso);
   translationPicker.setItems(items);
 }
 
@@ -182,7 +228,7 @@ async function changeTranslation() {
   savePrefs();
   if (!queue.length || !loadedSel) return;
   const translation = $('translation').value;
-  setStatus('Tarjima yuklanmoqda...');
+  setStatus(t('trLoading'));
   try {
     const verses = await fetchSelection(loadedSel, translation);
     if (translation !== $('translation').value) return; // shu orada yana o'zgardi
@@ -194,18 +240,25 @@ async function changeTranslation() {
       showItem(queue[index]);
       updateStatus();
     } else {
-      setStatus('Tarjima almashtirildi.');
+      setStatus(t('trChanged'));
     }
   } catch (e) {
-    setStatus('Xato: ' + e.message);
+    setStatus(t('error', { msg: e.message }));
   }
 }
 
+// Sura nomi interfeys tilida (uz: o'zbekcha nom, en: Quran.com'dagi lotincha nom)
+const surahName = (c) => (LANG === 'uz' && UZ_NAMES[c.id - 1]) || c.name_simple;
+
+// Arabcha nom FSI/PDI ichida — atrofdagi raqamlar tartibi buzilmasin
 function surahTitle(c) {
-  return `${c.id}. ${UZ_NAMES[c.id - 1] || c.name_simple} — ${c.name_arabic}`;
+  return `${c.id}. ${surahName(c)} — \u2068${c.name_arabic}\u2069`;
 }
 
-const shortSurahName = (id) => UZ_NAMES[id - 1] || `Sura ${id}`;
+const shortSurahName = (id) => {
+  const c = chapters.find((x) => x.id === id);
+  return c ? surahName(c) : t('surahN', { n: id });
+};
 const clampInt = (v, min, max) => Math.min(max, Math.max(min, Math.round(+v) || min));
 
 // --- Ijro oralig'i: sura (dan–gacha), sahifa yoki juz ---
@@ -233,12 +286,12 @@ function currentSelection() {
   if (mode === 'page') {
     const p = clampInt($('pageNum').value, 1, 604);
     $('pageNum').value = p;
-    return { kind: 'page', id: p, title: `${p}-sahifa` };
+    return { kind: 'page', id: p, title: t('pageTitle', { n: p }) };
   }
   if (mode === 'juz') {
     const j = clampInt($('juzNum').value, 1, 30);
     $('juzNum').value = j;
-    return { kind: 'juz', id: j, title: `${j}-juz` };
+    return { kind: 'juz', id: j, title: t('juzTitle', { n: j }) };
   }
   const ch = +$('chapter').value;
   const c = chapters.find((x) => x.id === ch);
@@ -248,7 +301,7 @@ function currentSelection() {
   if (to < from) [from, to] = [to, from];
   $('fromAyah').value = from;
   $('toAyah').value = to;
-  const name = c ? surahTitle(c) : `Sura ${ch}`;
+  const name = c ? surahTitle(c) : t('surahN', { n: ch });
   return { kind: 'chapter', id: ch, from, to, title: from === 1 && to === max ? name : `${name}, ${from}–${to}` };
 }
 
@@ -298,16 +351,16 @@ function stepSelection(delta) {
 }
 
 async function loadLists() {
-  setStatus('Suralar ro\'yxati yuklanmoqda...');
+  setStatus(t('loadingSurahs'));
   const [ch] = await Promise.all([
-    getJSON(`${API}/chapters?language=uz`),
+    getJSON(`${API}/chapters?language=${LANG === 'uz' ? 'uz' : 'en'}`),
     loadTranslations().catch((e) => console.error('Tarjimalar ro\'yxati yuklanmadi', e)),
   ]);
   chapters = ch.chapters;
   chapterPicker.setItems(chapters.map((c) => ({
     value: c.id,
-    label: `${c.id}. ${UZ_NAMES[c.id - 1] || c.name_simple}`,
-    sub: `${c.name_simple} · ${c.verses_count} oyat`,
+    label: `${c.id}. ${surahName(c)}`,
+    sub: `${LANG === 'uz' ? c.name_simple : c.translated_name?.name || c.name_simple} · ${t('versesCount', { n: c.verses_count })}`,
     right: c.name_arabic,
     search: [
       normalize(UZ_NAMES[c.id - 1]),
@@ -318,7 +371,7 @@ async function loadLists() {
     ],
   })));
   restorePrefs();
-  setStatus('Tayyor.');
+  setStatus(t('ready'));
 }
 
 // translationIds: "55,45" — API tarjimalarni aralash tartibda qaytaradi, shuning uchun resource_id bo'yicha joylaymiz
@@ -415,6 +468,7 @@ function showItem(item) {
   clockRate = 1;
   window.bridge.showVerse({ id: verseSeq, arabic: item.arabic, words: item.words, wordsTj: item.wordsTj, translations: item.translations, label: item.label });
   window.bridge.setPlayerState({ title: item.label });
+  $('nowTitle').textContent = item.label;
   updateNowPlaying(item);
 }
 
@@ -459,7 +513,7 @@ function stopCurrent() {
 
 function updatePlayBtn() {
   const playing = !!(current && !current.paused);
-  $('playBtn').textContent = playing ? '⏸' : '▶';
+  $('playBtn').classList.toggle('playing', playing);
   window.bridge.setPlayerState({ playing });
 }
 
@@ -473,7 +527,7 @@ async function playIndex(i) {
     index = -1;
     dropPreloaded();
     window.bridge.showVerse(null);
-    setStatus(`${chapterName} tugadi.`);
+    setStatus(t('finished', { name: chapterName }));
     updatePlayBtn();
     return;
   }
@@ -494,7 +548,7 @@ async function playIndex(i) {
       audio = await makeAudio(i);
     }
   } catch {
-    if (token === playToken) setStatus(`Audio yuklanmadi: ${item.label}. Internetni yoki boshqa qorini tekshiring.`);
+    if (token === playToken) setStatus(t('audioFail', { label: item.label }));
     return;
   }
   if (token !== playToken) { releaseAudio(audio); return; }
@@ -505,7 +559,7 @@ async function playIndex(i) {
   current.onplay = updatePlayBtn;
   current.onpause = () => { updatePlayBtn(); sendClock(); };
   current.onplaying = current.onseeked = current.ontimeupdate = sendClock;
-  current.play().catch((e) => setStatus('Ijro xatosi: ' + e.message));
+  current.play().catch((e) => setStatus(t('playError', { msg: e.message })));
 
   // So'z vaqtlari — kelguncha matn oddiy ko'rinadi
   const seq = verseSeq;
@@ -545,10 +599,10 @@ async function loadSurah() {
   }
 
   $('load').disabled = true;
-  setStatus('Matn yuklanmoqda...');
+  setStatus(t('loadingText'));
   try {
     const q = await buildQueue(sel, translation);
-    if (!q.length) throw new Error('Bu oraliqda oyat topilmadi');
+    if (!q.length) throw new Error(t('noVerses'));
     queue = q;
     chapterName = sel.title;
     dropPreloaded();
@@ -557,7 +611,7 @@ async function loadSurah() {
     rangePlays = 0;
     playIndex(0);
   } catch (e) {
-    setStatus('Xato: ' + e.message);
+    setStatus(t('error', { msg: e.message }));
   } finally {
     $('load').disabled = false;
   }
@@ -593,9 +647,9 @@ function updateStatus() {
   const item = queue[index];
   if (!item) return;
   const fmt = (n) => (n === Infinity ? '∞' : n);
-  let s = `${chapterName} · ${item.label} (${index + 1}/${queue.length})`;
-  if (!item.isBasmala && ayahRepeat() > 1) s += ` · oyat ${ayahPlays + 1}/${fmt(ayahRepeat())}`;
-  if (rangeRepeat() > 1) s += ` · qiroat ${rangePlays + 1}/${fmt(rangeRepeat())}`;
+  let s = `${chapterName} · ${index + 1}/${queue.length}`;
+  if (!item.isBasmala && ayahRepeat() > 1) s += ` · ${t('statAyah', { a: ayahPlays + 1, b: fmt(ayahRepeat()) })}`;
+  if (rangeRepeat() > 1) s += ` · ${t('statRange', { a: rangePlays + 1, b: fmt(rangeRepeat()) })}`;
   setStatus(s);
 }
 
@@ -721,10 +775,10 @@ function autoHlColor(textHex, bgHex, bgAlpha) {
 
 // Tajvid ranglari izohi (overlay'dagi qorong'i fon palitrasi bilan bir xil)
 const TAJWEED_LEGEND = [
-  ['#ffa64d', "G'unna"], ['#d07cff', 'Ixfo'], ['#ff6ad5', 'Ixfoi shafaviy'], ['#2ed3a0', "Idg'om g'unnali"],
-  ['#5bd35b', "Idg'om g'unnasiz"], ['#7ee05a', "Idg'omi shafaviy"], ['#4fd1ff', 'Iqlob'], ['#ff5a5f', 'Qalqala'],
-  ['#6ea8ff', 'Madd tabiiy'], ['#8f9cff', "Madd joiz"], ['#4f8cff', 'Madd vojib'], ['#b18cff', 'Madd lozim'],
-  ['#9aa3ad', "O'qilmaydigan harf"],
+  ['#ffa64d', t('tjGhunnah')], ['#d07cff', t('tjIkhfa')], ['#ff6ad5', t('tjIkhfaShafawi')], ['#2ed3a0', t('tjIdghamG')],
+  ['#5bd35b', t('tjIdghamNoG')], ['#7ee05a', t('tjIdghamShafawi')], ['#4fd1ff', t('tjIqlab')], ['#ff5a5f', t('tjQalqalah')],
+  ['#6ea8ff', t('tjMaddNormal')], ['#8f9cff', t('tjMaddPerm')], ['#4f8cff', t('tjMaddOblig')], ['#b18cff', t('tjMaddNec')],
+  ['#9aa3ad', t('tjSilent')],
 ];
 $('tajweedLegend').replaceChildren(...TAJWEED_LEGEND.map(([c, name]) => {
   const s = document.createElement('span');
@@ -748,7 +802,7 @@ function pushStyle(preview = false) {
     if (out) out.textContent = el.value;
   }
   const trOn = $('showTr').checked;
-  document.querySelector('.switch-text').textContent = trOn ? 'Ko\'rsatish' : 'O\'chiq';
+  document.querySelector('.switch-text').textContent = trOn ? t('trOn') : t('trOff');
   $('translationPicker').classList.toggle('off', !trOn);
   window.bridge.setStyle({ ...readStyle(), preview });
   savePrefs();
@@ -826,7 +880,8 @@ showCacheSize();
 $('lockBtn').addEventListener('click', () => window.bridge.toggleLock());
 $('visBtn').addEventListener('click', () => window.bridge.toggleVisible());
 window.bridge.onLocked((locked) => {
-  $('lockBtn').textContent = locked ? 'Joyini o\'zgartirish' : 'Qulflash';
+  $('lockBtn').querySelector('.lbl-text').textContent = locked ? t('move') : t('lock');
+  $('lockBtn').classList.toggle('on', !locked);
 });
 // Global hotkey va menu bar buyruqlari
 window.bridge.onPlayerCmd((cmd) => {
@@ -837,12 +892,13 @@ window.bridge.onPlayerCmd((cmd) => {
 // Bir nechta monitor: subtitle hammasida yoki faqat asosiysida
 window.bridge.getAllScreens().then(({ on, count }) => {
   $('allScreens').checked = on;
-  $('allScreensRow').title = `Ulangan monitorlar: ${count}`;
+  $('allScreensRow').title = t('screens', { n: count });
 });
 $('allScreens').addEventListener('change', (e) => window.bridge.setAllScreens(e.target.checked));
 window.bridge.onAllScreens((on) => { $('allScreens').checked = on; });
 window.bridge.onVisible((visible) => {
-  $('visBtn').textContent = visible ? 'Yashirish' : 'Ko\'rsatish';
+  $('visBtn').querySelector('.lbl-text').textContent = visible ? t('hide') : t('show');
+  $('visBtn').classList.toggle('on', !visible);
 });
 
 // --- Tezkor tugmalar sozlamasi ---
@@ -901,10 +957,10 @@ async function renderShortcuts(state) {
     row.className = 'sc-row';
     row.innerHTML = `
       <span class="sc-title"></span>
-      <button class="sc-key ${s.accel ? '' : 'off'}" title="Bosing va yangi kombinatsiyani kiriting"></button>
-      <button class="small" data-act="off" title="O'chirish">✕</button>
-      <button class="small" data-act="reset" title="Standart: ${prettyAccel(s.def)}">↺</button>
-      ${s.error ? '<div class="sc-err">Bu kombinatsiyani boshqa dastur yoki tizim band qilgan — boshqasini tanlang.</div>' : ''}`;
+      <button class="sc-key ${s.accel ? '' : 'off'}" title="${t('scClickTitle')}"></button>
+      <button class="small" data-act="off" title="${t('scOff')}">✕</button>
+      <button class="small" data-act="reset" title="${t('scDefault', { k: prettyAccel(s.def) })}">↺</button>
+      ${s.error ? `<div class="sc-err">${t('scBusy')}</div>` : ''}`;
     row.querySelector('.sc-title').textContent = s.title;
     const keyEl = row.querySelector('.sc-key');
     keyEl.textContent = prettyAccel(s.accel);
@@ -912,7 +968,7 @@ async function renderShortcuts(state) {
       stopRecording();
       recording = { action, el: keyEl };
       keyEl.classList.add('recording');
-      keyEl.textContent = 'Kombinatsiyani bosing… (Esc — bekor)';
+      keyEl.textContent = t('scPress');
       window.bridge.pauseShortcuts(true);
       keyEl.focus();
     });
@@ -931,7 +987,7 @@ document.addEventListener('keydown', (e) => {
   const r = accelFromEvent(e);
   if (!r) return;
   if (!r.hasMod && !r.isFn) {
-    recording.el.textContent = 'Kamida bitta ⌃ / ⌥ / ⌘ tugmasi kerak';
+    recording.el.textContent = t('scNeedMod');
     return;
   }
   stopRecording(r.accel);
@@ -939,4 +995,19 @@ document.addEventListener('keydown', (e) => {
 
 renderShortcuts();
 
-loadLists().catch((e) => setStatus('Xato: ' + e.message));
+loadLists().catch((e) => setStatus(t('error', { msg: e.message })));
+
+// --- Bo'limlar (Tinglash / Ko'rinish / Sozlamalar) ---
+function showTab(name) {
+  document.querySelectorAll('[data-tab]').forEach((el) => el.classList.toggle('on', el.dataset.tab === name));
+  document.querySelector('main').scrollTop = 0;
+  try { localStorage.setItem('tab', name); } catch {}
+}
+document.querySelectorAll('nav.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+try { const t = localStorage.getItem('tab'); if (t && document.querySelector(`section[data-tab="${t}"]`)) showTab(t); } catch {}
+
+// --- Til ---
+document.querySelectorAll('#langSeg button').forEach((b) => {
+  b.classList.toggle('on', b.dataset.lang === LANG);
+  b.addEventListener('click', () => { if (b.dataset.lang !== LANG) window.bridge.setLang(b.dataset.lang); });
+});

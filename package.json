@@ -1,8 +1,8 @@
 {
-  "name": "suzuvchi-quron",
-  "productName": "Suzuvchi Quron",
-  "version": "0.4.0",
-  "description": "Quron tilovati va barcha oynalar ustida suzib turuvchi subtitle",
+  "name": "floating-quran",
+  "productName": "Floating Quran",
+  "version": "0.5.0",
+  "description": "Quran recitation with floating subtitles above every window",
   "main": "src/main.js",
   "author": "Elnur Suyunov",
   "license": "MIT",
@@ -21,8 +21,8 @@
   },
   "build": {
     "appId": "uz.suzuvchiquron.app",
-    "productName": "Suzuvchi Quron",
-    "artifactName": "SuzuvchiQuron-${version}-${os}-${arch}.${ext}",
+    "productName": "Floating Quran",
+    "artifactName": "FloatingQuran-${version}-${os}-${arch}.${ext}",
     "files": [
       "src/**/*",
       "package.json"
@@ -57,7 +57,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Suzuvchi Quron"
+      "shortcutName": "Floating Quran"
     },
     "linux": {
       "target": [
@@ -70,10 +70,10 @@
       ],
       "category": "Education",
       "maintainer": "Elnur Suyunov",
-      "synopsis": "Quron tilovati uchun suzuvchi subtitle"
+      "synopsis": "Floating Quran subtitles above every window"
     },
     "dmg": {
-      "title": "Suzuvchi Quron"
+      "title": "Floating Quran"
     }
   },
   "devDependencies": {

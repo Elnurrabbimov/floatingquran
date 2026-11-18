@@ -1,382 +1,510 @@
 <!doctype html>
-<html lang="uz">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Suzuvchi Quron</title>
+  <title>Floating Quran</title>
   <style>
     :root {
-      --bg: #f6f7f9; --card: #fff; --text: #1b1f24; --muted: #667085; --accent: #0f766e; --border: #e4e7ec;
+      --bg: #f3f5f4; --surface: #ffffff; --surface-2: #f0f3f2; --text: #14201c; --muted: #64716c;
+      --accent: #0f8a6c; --accent-2: #0b6e56; --accent-soft: #e2f3ee; --on-accent: #ffffff;
+      --border: #e1e7e4; --shadow: 0 1px 2px rgba(16, 32, 26, .05), 0 4px 16px rgba(16, 32, 26, .05);
+      --radius: 16px; --danger: #e5484d;
     }
     @media (prefers-color-scheme: dark) {
-      :root { --bg: #111418; --card: #1a1f25; --text: #e6e9ee; --muted: #98a2b3; --accent: #2dd4bf; --border: #2a3038; }
+      :root {
+        --bg: #0e1412; --surface: #161e1b; --surface-2: #1d2724; --text: #e7efec; --muted: #8fa19a;
+        --accent: #34c79e; --accent-2: #5fd9b5; --accent-soft: #173a30; --on-accent: #06221a;
+        --border: #25322e; --shadow: 0 1px 2px rgba(0,0,0,.3);
+      }
     }
     * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
-      margin: 0; padding: 16px; background: var(--bg); color: var(--text);
-      font-family: -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 14px;
+      margin: 0; background: var(--bg); color: var(--text);
+      font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex; flex-direction: column; -webkit-font-smoothing: antialiased;
     }
-    h1 { font-size: 18px; margin: 0 0 12px; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
-    label { display: block; color: var(--muted); font-size: 12px; margin: 8px 0 4px; }
-    select, input[type=range] { width: 100%; }
-    select { padding: 6px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); }
-    .row { display: flex; gap: 8px; margin-top: 10px; }
-    button {
-      flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--border);
-      background: var(--card); color: var(--text); cursor: pointer;
-    }
-    button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-    button.active { border-color: var(--accent); color: var(--accent); font-weight: 600; }
-    #status { color: var(--muted); font-size: 12px; margin-top: 8px; min-height: 16px; }
-    .checks { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 8px; }
-    .checks label { display: flex; gap: 6px; align-items: center; color: var(--text); font-size: 13px; margin: 0; }
-    .hint { color: var(--muted); font-size: 12px; line-height: 1.6; }
-    kbd { border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; font-size: 11px; }
-    details { border-top: 1px solid var(--border); padding-top: 6px; margin-top: 8px; }
-    details:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
-    summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
-    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
-    .color { display: flex; align-items: center; gap: 8px; }
-    .color input { width: 40px; height: 28px; border: 1px solid var(--border); border-radius: 6px; padding: 0; background: none; cursor: pointer; }
-    .presets { display: flex; flex-wrap: wrap; gap: 6px; }
-    .presets button { flex: 0 0 auto; font-size: 12px; padding: 6px 10px; }
-    .val { color: var(--text); }
+    button, input, select { font: inherit; color: inherit; }
+    svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
 
-    /* Qidiruvli tanlagich */
+    /* --- Yuqori panel va bo'limlar --- */
+    .appbar { display: flex; align-items: center; gap: 10px; padding: 14px 16px 10px; }
+    .appbar img { width: 30px; height: 30px; border-radius: 8px; }
+    .appbar h1 { font-size: 16px; margin: 0; flex: 1; letter-spacing: -.01em; }
+    .icon-btn {
+      display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px;
+      border-radius: 10px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 12px;
+    }
+    .icon-btn:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+    .icon-btn.on { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+
+    .tabs { display: flex; gap: 4px; margin: 0 16px 6px; padding: 4px; border-radius: 12px; background: var(--surface-2); }
+    .tabs button {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+      height: 34px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); cursor: pointer; font-weight: 500;
+    }
+    .tabs button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+
+    main { flex: 1; overflow-y: auto; padding: 8px 16px 20px; }
+    section[data-tab] { display: none; }
+    section[data-tab].on { display: block; }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; box-shadow: var(--shadow); }
+    .card-title { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 0 0 10px; }
+    .field { margin-top: 12px; }
+    .field > .lbl, .lbl { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .hint { color: var(--muted); font-size: 12px; line-height: 1.5; }
+    kbd { border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; font-size: 11px; background: var(--surface-2); }
+
+    button.btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      height: 38px; padding: 0 14px; border-radius: 11px; border: 1px solid var(--border);
+      background: var(--surface); cursor: pointer; font-weight: 500;
+    }
+    button.btn:hover { background: var(--surface-2); }
+    button.primary { width: 100%; height: 44px; margin-top: 14px; background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+    button.primary:hover { background: var(--accent-2); }
+    button:disabled { opacity: .55; cursor: default; }
+
+    /* --- Hozir o'qilmoqda --- */
+    .now { text-align: center; padding: 18px 14px 14px; background:
+      radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%), var(--surface); }
+    #nowTitle { font-size: 18px; font-weight: 650; letter-spacing: -.01em; }
+    #status { color: var(--muted); font-size: 12px; min-height: 17px; margin-top: 3px; }
+    .controls { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 14px 0 12px; }
+    .ctrl { width: 44px; height: 44px; border-radius: 50%; border: 0; background: transparent; cursor: pointer; display: grid; place-items: center; color: var(--text); }
+    .ctrl:hover { background: var(--surface-2); }
+    .ctrl svg.i { width: 22px; height: 22px; }
+    .ctrl.sm svg.i { width: 18px; height: 18px; }
+    .ctrl.sm { color: var(--muted); }
+    #playBtn { width: 62px; height: 62px; background: var(--accent); color: var(--on-accent); box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 35%, transparent); }
+    #playBtn:hover { background: var(--accent-2); }
+    #playBtn svg { width: 26px; height: 26px; fill: currentColor; stroke: none; }
+    #playBtn .pause, #playBtn.playing .play { display: none; }
+    #playBtn.playing .pause { display: block; }
+    .volume { display: flex; align-items: center; gap: 10px; color: var(--muted); padding: 0 6px; }
+
+    input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 4px; background: var(--border); outline: none; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--border); cursor: pointer; }
+
+    /* --- Segment tugmalar --- */
+    .seg { display: flex; gap: 2px; padding: 3px; border-radius: 11px; background: var(--surface-2); }
+    .seg button { flex: 1; height: 32px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; font-weight: 500; }
+    .seg button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); font-weight: 600; }
+    .seg.sm button { height: 28px; font-size: 13px; }
+
+    /* --- Sura / sahifa / juz --- */
     .picker-row { display: flex; gap: 6px; align-items: flex-start; }
     .picker-row .picker { flex: 1; min-width: 0; }
-    .picker-row .nav { flex: 0 0 36px; padding: 8px 0; font-size: 16px; line-height: 1; }
+    .nav { flex: 0 0 38px; height: 38px; border-radius: 11px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; display: grid; place-items: center; color: var(--muted); }
+    .nav:hover { color: var(--text); background: var(--surface-2); }
+    input.num {
+      width: 100%; height: 38px; padding: 0 10px; border-radius: 11px; border: 1px solid var(--border);
+      background: var(--surface); text-align: center; font-size: 14px; outline: none;
+    }
+    input.num:focus { border-color: var(--accent); }
+    .picker-row input.num { flex: 1; }
+    .range { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+    .range .lbl { margin: 0; white-space: nowrap; }
+    .range input.num { flex: 1; }
+    .range .dash { color: var(--muted); }
+
+    /* --- Qidiruvli tanlagich --- */
     .picker { position: relative; }
     .picker-current {
-      width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px;
-      text-align: left; padding: 8px 10px;
+      width: 100%; height: 38px; display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      text-align: left; padding: 0 12px; border-radius: 11px; border: 1px solid var(--border); background: var(--surface); cursor: pointer;
     }
-    .picker-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .picker-current:hover { background: var(--surface-2); }
+    .picker-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
     .picker-caret { color: var(--muted); }
-    .picker.open .picker-current { border-color: var(--accent); }
-    .picker-pop {
-      margin-top: 4px; border: 1px solid var(--border); border-radius: 10px;
-      background: var(--card); overflow: hidden;
-    }
-    .picker-search {
-      width: 100%; padding: 9px 10px; border: 0; border-bottom: 1px solid var(--border);
-      background: transparent; color: var(--text); font-size: 14px; outline: none;
-    }
+    .picker.open .picker-current { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .picker-pop { margin-top: 6px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); overflow: hidden; box-shadow: var(--shadow); }
+    .picker-search { width: 100%; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--border); background: transparent; font-size: 14px; outline: none; }
     .picker-list { list-style: none; margin: 0; padding: 4px; max-height: 280px; overflow-y: auto; }
-    .picker-list li {
-      display: flex; justify-content: space-between; align-items: center; gap: 8px;
-      padding: 7px 8px; border-radius: 6px; cursor: pointer;
-    }
-    .picker-list li.active { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+    .picker-list li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 9px; border-radius: 8px; cursor: pointer; }
+    .picker-list li.active { background: var(--accent-soft); }
     .picker-list li.selected .picker-main { color: var(--accent); font-weight: 600; }
     .picker-main small { display: block; color: var(--muted); font-size: 11px; font-weight: 400; }
     .picker-right { font-family: "Geeza Pro", serif; font-size: 16px; color: var(--muted); }
     .picker-empty { color: var(--muted); cursor: default; }
-    .picker-check {
-      flex: 0 0 18px; height: 18px; border: 1.5px solid var(--border); border-radius: 5px;
-      display: inline-flex; align-items: center; justify-content: center; font-size: 12px; color: #fff;
-    }
+    .picker-check { flex: 0 0 18px; height: 18px; border: 1.5px solid var(--border); border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; color: var(--on-accent); }
     .picker-list li.selected .picker-check { background: var(--accent); border-color: var(--accent); }
     .picker-multi .picker-list li { justify-content: flex-start; }
     .picker-multi .picker-main { flex: 1; }
-    .picker-order {
-      flex: 0 0 auto; font-size: 11px; color: var(--accent); border: 1px solid var(--accent);
-      border-radius: 10px; padding: 0 6px;
-    }
-    .picker-foot {
-      display: flex; justify-content: space-between; align-items: center; gap: 8px;
-      padding: 6px 8px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px;
-    }
-    .picker-foot button { flex: 0 0 auto; padding: 5px 14px; }
+    .picker-order { flex: 0 0 auto; font-size: 11px; color: var(--accent); border: 1px solid var(--accent); border-radius: 10px; padding: 0 6px; }
+    .picker-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 8px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
+    .picker-foot button { padding: 5px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); cursor: pointer; }
     .picker-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-    .picker-chips:not(:empty) { margin-top: 6px; }
-    .chip {
-      display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 14px;
-      border: 1px solid var(--border); font-size: 12px; max-width: 100%;
-    }
-    .chip button { flex: 0 0 auto; border: 0; background: none; padding: 0 6px; color: var(--muted); font-size: 14px; }
+    .picker-chips:not(:empty) { margin-top: 8px; }
+    .chip { display: inline-flex; align-items: center; gap: 2px; padding: 3px 4px 3px 10px; border-radius: 14px; background: var(--surface-2); font-size: 12px; max-width: 100%; }
+    .chip button { border: 0; background: none; padding: 0 6px; color: var(--muted); font-size: 14px; cursor: pointer; }
     .chip button:hover { color: var(--text); }
+    #translationPicker.off { opacity: .45; }
 
-    /* Yoqish/o'chirish tugmasi */
-    .label-row { display: flex; justify-content: space-between; align-items: center; margin: 8px 0 4px; }
-    .label-row > label:first-child { margin: 0; }
-    .switch { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; color: var(--muted); font-size: 12px; }
-    .switch input { display: none; }
-    .switch .slider {
-      width: 30px; height: 18px; border-radius: 9px; background: var(--border); position: relative; transition: background .2s;
-    }
-    .switch .slider::after {
-      content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
-      background: #fff; transition: transform .2s;
-    }
-    .switch input:checked + .slider { background: var(--accent); }
-    .switch input:checked + .slider::after { transform: translateX(12px); }
-    #translationPicker.off .picker-current { opacity: .5; }
+    /* --- Kalit (switch) --- */
+    .label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .label-row .lbl { margin: 0; }
+    .switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; color: var(--muted); font-size: 12px; }
+    .switch input, .toggle input { display: none; }
+    .slider { flex: 0 0 auto; width: 34px; height: 20px; border-radius: 10px; background: var(--border); position: relative; transition: background .2s; }
+    .slider::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .2s; }
+    input:checked + .slider { background: var(--accent); }
+    input:checked + .slider::after { transform: translateX(14px); }
 
-    /* Segment tugmalar (Sahifa/Sura/Juz, takrorlash) */
-    .seg { display: flex; gap: 3px; padding: 3px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); }
-    .seg button { flex: 1; border: 0; background: transparent; padding: 6px 4px; font-size: 13px; color: var(--muted); }
-    .tj-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; margin: 6px 0 2px; color: var(--muted); }
-    .tj-legend span { display: inline-flex; align-items: center; gap: 4px; }
+    /* Sozlama qatori: matn chapda, kalit o'ngda */
+    .toggle { display: flex; align-items: center; gap: 12px; padding: 10px 0; cursor: pointer; border-top: 1px solid var(--border); }
+    .toggle:first-of-type { border-top: 0; padding-top: 2px; }
+    .toggle .t { flex: 1; min-width: 0; }
+    .toggle .t b { display: block; font-weight: 500; }
+    .toggle .t small { display: block; color: var(--muted); font-size: 12px; margin-top: 1px; }
+
+    /* --- Takrorlash --- */
+    .rep { display: grid; grid-template-columns: 110px 1fr; gap: 10px; align-items: center; }
+    .rep + .rep { margin-top: 10px; }
+    .rep .lbl { margin: 0; color: var(--text); font-size: 13px; }
+
+    /* --- Uslublar --- */
+    .presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .presets button {
+      height: 64px; border-radius: 12px; border: 1px solid var(--border); cursor: pointer; padding: 6px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+      background-image: linear-gradient(45deg, #c9d1ce 25%, transparent 25%, transparent 75%, #c9d1ce 75%), linear-gradient(45deg, #c9d1ce 25%, #e9edeb 25%, #e9edeb 75%, #c9d1ce 75%);
+      background-size: 12px 12px; background-position: 0 0, 6px 6px;
+    }
+    .presets button .sw { width: 100%; flex: 1; border-radius: 8px; display: grid; place-items: center; font: 20px "Amiri Quran", "Geeza Pro", serif; }
+    .presets button .nm { font-size: 11px; color: var(--text); background: var(--surface); border-radius: 6px; padding: 0 6px; }
+    .presets button:hover { border-color: var(--accent); }
+
+    select {
+      width: 100%; height: 38px; padding: 0 10px; border-radius: 11px; border: 1px solid var(--border); background: var(--surface); cursor: pointer;
+    }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .slider-field .lbl { display: flex; justify-content: space-between; }
+    .slider-field .val { color: var(--text); font-variant-numeric: tabular-nums; }
+    .colors { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .color { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 11px; background: var(--surface-2); font-size: 13px; cursor: pointer; }
+    .color input[type=color] { width: 28px; height: 28px; border: 0; border-radius: 8px; padding: 0; background: none; cursor: pointer; flex: 0 0 auto; }
+    .color input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+    .color input[type=color]::-webkit-color-swatch { border: 1px solid var(--border); border-radius: 8px; }
+    .color input[type=color]:disabled { opacity: .6; cursor: default; }
+    .color.wide { grid-column: 1 / -1; }
+    .color .auto { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+
+    details.card > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+    details.card > summary::-webkit-details-marker { display: none; }
+    details.card > summary .card-title { margin: 0; }
+    details.card > summary::after { content: "›"; color: var(--muted); font-size: 18px; transition: transform .2s; }
+    details.card[open] > summary::after { transform: rotate(90deg); }
+    details.card[open] > summary { margin-bottom: 12px; }
+
+    .tj-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; color: var(--muted); padding: 2px 0 10px 0; }
+    .tj-legend span { display: inline-flex; align-items: center; gap: 5px; }
     .tj-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
     .tj-legend.hidden { display: none; }
-    .seg button.on { background: var(--card); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
-    input.num {
-      width: 100%; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border);
-      background: var(--card); color: var(--text); font-size: 14px;
-    }
-    .picker-row input.num { flex: 1; text-align: center; }
 
-    /* Tezkor tugmalar */
-    .sc-row { display: grid; grid-template-columns: 1fr 150px auto auto; gap: 6px; align-items: center; padding: 4px 0; }
+    /* --- Tezkor tugmalar --- */
+    .sc-row { display: grid; grid-template-columns: 1fr 140px auto auto; gap: 6px; align-items: center; padding: 6px 0; border-top: 1px solid var(--border); }
+    .sc-row:first-child { border-top: 0; }
     .sc-title { font-size: 13px; }
-    .sc-key {
-      padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg);
-      color: var(--text); text-align: center; font-size: 13px; cursor: pointer; min-height: 30px;
-    }
+    .sc-key { height: 32px; padding: 0 8px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface-2); text-align: center; font-size: 13px; cursor: pointer; }
     .sc-key.recording { border-color: var(--accent); color: var(--accent); }
     .sc-key.off { color: var(--muted); }
-    .sc-row button.small { flex: 0 0 auto; padding: 5px 8px; font-size: 12px; }
-    .sc-err { grid-column: 1 / -1; color: #f97066; font-size: 11px; margin-top: -2px; }
+    .sc-row button.small { height: 32px; padding: 0 8px; font-size: 12px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; color: var(--muted); }
+    .sc-row button.small:hover { color: var(--text); }
+    .sc-err { grid-column: 1 / -1; color: var(--danger); font-size: 11px; margin-top: -2px; }
+
+    .row-between { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .btn-row { display: flex; gap: 8px; margin-top: 12px; }
+    .btn-row .btn { flex: 1; }
   </style>
 </head>
 <body>
-  <h1>Suzuvchi Quron</h1>
+  <svg width="0" height="0" style="position:absolute">
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l11-6.5a1 1 0 0 0 0-1.72l-11-6.5A1 1 0 0 0 8 5.5z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path d="M19 20 9 12l10-8z"/><path d="M5 19V5"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="m5 4 10 8-10 8z"/><path d="M19 5v14"/></symbol>
+    <symbol id="i-replay" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></symbol>
+    <symbol id="i-vol" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-move" viewBox="0 0 24 24"><path d="m5 9-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></symbol>
+    <symbol id="i-head" viewBox="0 0 24 24"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></symbol>
+    <symbol id="i-brush" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r="1"/><circle cx="17.5" cy="10.5" r="1"/><circle cx="8.5" cy="7.5" r="1"/><circle cx="6.5" cy="12.5" r="1"/><path d="M12 2a10 10 0 0 0 0 20c.9 0 1.7-.8 1.7-1.7 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.8-1.7 1.7-1.7h2a5.6 5.6 0 0 0 5.6-5.6C22 6 17.5 2 12 2z"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  </svg>
 
-  <div class="card">
-    <label>Ijro turi</label>
-    <input type="hidden" id="playMode" value="surah" />
-    <div class="seg" data-for="playMode">
-      <button data-v="page">Sahifa</button>
-      <button data-v="surah">Sura</button>
-      <button data-v="juz">Juz</button>
-    </div>
+  <header class="appbar">
+    <img src="assets/icon.png" alt="" />
+    <h1>Floating Quran</h1>
+    <button id="visBtn" class="icon-btn" data-i18n-title="visTitle"><svg class="i"><use href="#i-eye"/></svg><span class="lbl-text" data-i18n="hide"></span></button>
+    <button id="lockBtn" class="icon-btn" data-i18n-title="moveTitle"><svg class="i"><use href="#i-move"/></svg><span class="lbl-text" data-i18n="move"></span></button>
+  </header>
 
-    <div id="surahBox">
-      <label>Sura</label>
-      <input type="hidden" id="chapter" value="1" />
-      <div class="picker-row">
-        <button id="prevSurah" class="nav" title="Oldingi sura">‹</button>
-        <div id="chapterPicker"></div>
-        <button id="nextSurah" class="nav" title="Keyingi sura">›</button>
-      </div>
-      <div class="grid2">
-        <div>
-          <label for="fromAyah">Dan (oyat)</label>
-          <input id="fromAyah" class="num" type="number" min="1" value="1" />
+  <nav class="tabs">
+    <button data-tab="listen" class="on"><svg class="i"><use href="#i-head"/></svg><span data-i18n="tabListen"></span></button>
+    <button data-tab="style"><svg class="i"><use href="#i-brush"/></svg><span data-i18n="tabStyle"></span></button>
+    <button data-tab="settings"><svg class="i"><use href="#i-gear"/></svg><span data-i18n="tabSettings"></span></button>
+  </nav>
+
+  <main>
+    <!-- ============ TINGLASH ============ -->
+    <section data-tab="listen" class="on">
+      <div class="card now">
+        <div id="nowTitle" data-i18n="pickSurah"></div>
+        <div id="status"></div>
+        <div class="controls">
+          <button id="replayBtn" class="ctrl sm" data-i18n-title="replayTitle"><svg class="i"><use href="#i-replay"/></svg></button>
+          <button id="prevBtn" class="ctrl" data-i18n-title="prevTitle"><svg class="i"><use href="#i-prev"/></svg></button>
+          <button id="playBtn" class="ctrl" data-i18n-title="playTitle">
+            <svg class="play"><use href="#i-play"/></svg><svg class="pause"><use href="#i-pause"/></svg>
+          </button>
+          <button id="nextBtn" class="ctrl" data-i18n-title="nextTitle"><svg class="i"><use href="#i-next"/></svg></button>
+          <span class="ctrl sm" aria-hidden="true"></span>
         </div>
-        <div>
-          <label for="toAyah">Gacha (oyat)</label>
-          <input id="toAyah" class="num" type="number" min="1" value="7" />
-        </div>
-      </div>
-    </div>
-
-    <div id="pageBox" hidden>
-      <label for="pageNum">Sahifa (1–604)</label>
-      <div class="picker-row">
-        <button class="nav" data-step="-1" title="Oldingi sahifa">‹</button>
-        <input id="pageNum" class="num" type="number" min="1" max="604" value="1" />
-        <button class="nav" data-step="1" title="Keyingi sahifa">›</button>
-      </div>
-    </div>
-
-    <div id="juzBox" hidden>
-      <label for="juzNum">Juz (1–30)</label>
-      <div class="picker-row">
-        <button class="nav" data-step="-1" title="Oldingi juz">‹</button>
-        <input id="juzNum" class="num" type="number" min="1" max="30" value="30" />
-        <button class="nav" data-step="1" title="Keyingi juz">›</button>
-      </div>
-    </div>
-
-    <label>Qori</label>
-    <input type="hidden" id="reciter" value="Alafasy_128kbps" />
-    <div id="reciterPicker"></div>
-
-    <div class="label-row">
-      <label>Tarjima</label>
-      <label class="switch" title="Tarjimani ko'rsatish / yashirish">
-        <input id="showTr" data-style type="checkbox" checked />
-        <span class="slider"></span>
-        <span class="switch-text">Ko'rsatish</span>
-      </label>
-    </div>
-    <input type="hidden" id="translation" value="55" />
-    <div id="translationPicker"></div>
-
-    <div class="row">
-      <button id="load" class="primary">Yuklash va tinglash</button>
-    </div>
-    <div class="row">
-      <button id="prevBtn" title="Oldingi oyat">⏮</button>
-      <button id="playBtn" title="Play / pauza">▶</button>
-      <button id="nextBtn" title="Keyingi oyat">⏭</button>
-    </div>
-    <div class="row">
-      <button id="replayBtn" title="Joriy oyatni boshidan (tugagan bo'lsa — qiroatni boshidan)">↺ Qayta</button>
-    </div>
-
-    <label>Har bir oyatni takrorlash</label>
-    <input type="hidden" id="ayahRepeat" value="1" />
-    <div class="seg" data-for="ayahRepeat">
-      <button data-v="1">1 marta</button>
-      <button data-v="2">2 marta</button>
-      <button data-v="3">3 marta</button>
-      <button data-v="inf">Takrorlash</button>
-    </div>
-
-    <label>Umumiy qiroatni takrorlash</label>
-    <input type="hidden" id="rangeRepeat" value="1" />
-    <div class="seg" data-for="rangeRepeat">
-      <button data-v="1">1 marta</button>
-      <button data-v="2">2 marta</button>
-      <button data-v="3">3 marta</button>
-      <button data-v="inf">Takrorlash</button>
-    </div>
-    <label for="volume">Ovoz</label>
-    <input id="volume" type="range" min="0" max="100" value="100" />
-    <div id="status"></div>
-    <div class="row" style="align-items:center">
-      <span id="cacheInfo" class="hint" style="flex:1"></span>
-      <button id="clearCacheBtn" style="flex:0 0 auto;font-size:12px">Keshni tozalash</button>
-    </div>
-  </div>
-
-  <div class="card">
-    <details open>
-      <summary>Tayyor uslublar</summary>
-      <div class="presets">
-        <button data-preset="classic">Klassik</button>
-        <button data-preset="contrast">Yuqori kontrast</button>
-        <button data-preset="gold">Oltin</button>
-        <button data-preset="clear">Fonsiz</button>
-        <button data-preset="light">Yorug'</button>
-        <button data-preset="green">Yashil</button>
-      </div>
-    </details>
-
-    <details open>
-      <summary>Shrift</summary>
-      <label for="arFont">Arabcha shrift</label>
-      <select id="arFont" data-style>
-        <option value="Amiri Quran">Amiri Quran</option>
-        <option value="Amiri">Amiri</option>
-        <option value="Scheherazade New">Scheherazade New</option>
-        <option value="Noto Naskh Arabic">Noto Naskh Arabic</option>
-        <option value="Lateef">Lateef</option>
-        <option value="Reem Kufi">Reem Kufi (kufiy)</option>
-        <option value="Aref Ruqaa">Aref Ruqaa (ruq'a)</option>
-        <option value="Geeza Pro">Geeza Pro (macOS)</option>
-      </select>
-      <label for="trFont">Tarjima shrifti</label>
-      <select id="trFont" data-style>
-        <option value="system">Tizim shrifti</option>
-        <option value="Inter">Inter</option>
-        <option value="Roboto">Roboto</option>
-        <option value="Montserrat">Montserrat</option>
-        <option value="Nunito">Nunito</option>
-        <option value="PT Sans">PT Sans</option>
-        <option value="Merriweather">Merriweather (serif)</option>
-        <option value="Noto Serif">Noto Serif (serif)</option>
-      </select>
-      <div class="grid2">
-        <div>
-          <label>Arabcha o'lchami: <span class="val" id="arSizeVal"></span>px</label>
-          <input id="arSize" data-style type="range" min="20" max="90" value="40" />
-        </div>
-        <div>
-          <label>Tarjima o'lchami: <span class="val" id="trSizeVal"></span>px</label>
-          <input id="trSize" data-style type="range" min="12" max="48" value="20" />
+        <div class="volume">
+          <svg class="i"><use href="#i-vol"/></svg>
+          <input id="volume" type="range" min="0" max="100" value="100" data-i18n-aria="volume" />
         </div>
       </div>
-      <div class="grid2">
-        <div>
-          <label for="trWeight">Tarjima qalinligi</label>
-          <select id="trWeight" data-style>
-            <option value="400">Oddiy</option>
-            <option value="600">Yarim qalin</option>
-            <option value="700">Qalin</option>
-          </select>
+
+      <div class="card">
+        <input type="hidden" id="playMode" value="surah" />
+        <div class="seg" data-for="playMode">
+          <button data-v="surah" data-i18n="modeSurah"></button>
+          <button data-v="page" data-i18n="modePage"></button>
+          <button data-v="juz" data-i18n="modeJuz"></button>
         </div>
-        <div>
-          <label>Qator oralig'i: <span class="val" id="lineVal"></span></label>
-          <input id="line" data-style type="range" min="1.2" max="2.6" step="0.1" value="1.9" />
+
+        <div id="surahBox" class="field">
+          <input type="hidden" id="chapter" value="1" />
+          <div class="picker-row">
+            <button id="prevSurah" class="nav" data-i18n-title="prevSurah"><svg class="i"><use href="#i-left"/></svg></button>
+            <div id="chapterPicker"></div>
+            <button id="nextSurah" class="nav" data-i18n-title="nextSurah"><svg class="i"><use href="#i-right"/></svg></button>
+          </div>
+          <div class="range">
+            <span class="lbl" data-i18n="ayahs"></span>
+            <input id="fromAyah" class="num" type="number" min="1" value="1" data-i18n-aria="fromAyah" />
+            <span class="dash">—</span>
+            <input id="toAyah" class="num" type="number" min="1" value="7" data-i18n-aria="toAyah" />
+          </div>
+        </div>
+
+        <div id="pageBox" class="field" hidden>
+          <span class="lbl" data-i18n="pageRange"></span>
+          <div class="picker-row">
+            <button class="nav" data-step="-1" data-i18n-title="prevPage"><svg class="i"><use href="#i-left"/></svg></button>
+            <input id="pageNum" class="num" type="number" min="1" max="604" value="1" />
+            <button class="nav" data-step="1" data-i18n-title="nextPage"><svg class="i"><use href="#i-right"/></svg></button>
+          </div>
+        </div>
+
+        <div id="juzBox" class="field" hidden>
+          <span class="lbl" data-i18n="juzRange"></span>
+          <div class="picker-row">
+            <button class="nav" data-step="-1" data-i18n-title="prevJuz"><svg class="i"><use href="#i-left"/></svg></button>
+            <input id="juzNum" class="num" type="number" min="1" max="30" value="30" />
+            <button class="nav" data-step="1" data-i18n-title="nextJuz"><svg class="i"><use href="#i-right"/></svg></button>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="lbl" data-i18n="reciter"></span>
+          <input type="hidden" id="reciter" value="Alafasy_128kbps" />
+          <div id="reciterPicker"></div>
+        </div>
+
+        <div class="field">
+          <div class="label-row">
+            <span class="lbl" data-i18n="translation"></span>
+            <label class="switch" data-i18n-title="trToggleTitle">
+              <span class="switch-text"></span>
+              <input id="showTr" data-style type="checkbox" checked />
+              <span class="slider"></span>
+            </label>
+          </div>
+          <input type="hidden" id="translation" value="55" />
+          <div id="translationPicker"></div>
+        </div>
+
+        <button id="load" class="btn primary" data-i18n="start"></button>
+      </div>
+
+      <div class="card">
+        <p class="card-title" data-i18n="repeat"></p>
+        <div class="rep">
+          <span class="lbl" data-i18n="repEach"></span>
+          <input type="hidden" id="ayahRepeat" value="1" />
+          <div class="seg sm" data-for="ayahRepeat">
+            <button data-v="1">1×</button><button data-v="2">2×</button><button data-v="3">3×</button><button data-v="inf" data-i18n-title="infinite">∞</button>
+          </div>
+        </div>
+        <div class="rep">
+          <span class="lbl" data-i18n="repAll"></span>
+          <input type="hidden" id="rangeRepeat" value="1" />
+          <div class="seg sm" data-for="rangeRepeat">
+            <button data-v="1">1×</button><button data-v="2">2×</button><button data-v="3">3×</button><button data-v="inf" data-i18n-title="infinite">∞</button>
+          </div>
         </div>
       </div>
-    </details>
+    </section>
 
-    <details open>
-      <summary>Ranglar</summary>
-      <div class="grid2">
-        <label class="color"><input id="arColor" data-style type="color" value="#ffffff" /> Arabcha matn</label>
-        <label class="color"><input id="trColor" data-style type="color" value="#e8eef5" /> Tarjima</label>
-        <label class="color"><input id="bgColor" data-style type="color" value="#0a0e14" /> Fon</label>
-        <label class="color"><input id="outlineColor" data-style type="color" value="#000000" /> Kontur</label>
-        <label class="color"><input id="hlColor" data-style type="color" value="#ffd54a" /> O'qilayotgan so'z
-          <span class="hint" style="margin-left:auto"><input id="hlAuto" data-style type="checkbox" checked /> avto</span></label>
-      </div>
-    </details>
-
-    <details open>
-      <summary>Kontrast va fon</summary>
-      <div class="grid2">
-        <div>
-          <label>Fon zichligi: <span class="val" id="bgAlphaVal"></span>%</label>
-          <input id="bgAlpha" data-style type="range" min="0" max="100" value="55" />
-        </div>
-        <div>
-          <label>Umumiy shaffoflik: <span class="val" id="opacityVal"></span>%</label>
-          <input id="opacity" data-style type="range" min="20" max="100" value="100" />
-        </div>
-        <div>
-          <label>Soya: <span class="val" id="shadowVal"></span>px</label>
-          <input id="shadow" data-style type="range" min="0" max="20" value="3" />
-        </div>
-        <div>
-          <label>Kontur qalinligi: <span class="val" id="outlineVal"></span>px</label>
-          <input id="outline" data-style type="range" min="0" max="6" step="0.5" value="0" />
-        </div>
-        <div>
-          <label>Burchak radiusi: <span class="val" id="radiusVal"></span>px</label>
-          <input id="radius" data-style type="range" min="0" max="40" value="16" />
-        </div>
-        <div>
-          <label>Ichki bo'shliq: <span class="val" id="padVal"></span>px</label>
-          <input id="pad" data-style type="range" min="0" max="40" value="14" />
+    <!-- ============ KO'RINISH ============ -->
+    <section data-tab="style">
+      <div class="card">
+        <p class="card-title" data-i18n="presets"></p>
+        <div class="presets">
+          <button data-preset="classic"><span class="sw" style="background:rgba(10,14,20,.8);color:#fff">بسم</span><span class="nm" data-i18n="pClassic"></span></button>
+          <button data-preset="contrast"><span class="sw" style="background:#000;color:#ff0">بسم</span><span class="nm" data-i18n="pContrast"></span></button>
+          <button data-preset="gold"><span class="sw" style="background:#1a1206;color:#f5d27a">بسم</span><span class="nm" data-i18n="pGold"></span></button>
+          <button data-preset="clear"><span class="sw" style="color:#fff;-webkit-text-stroke:1px #000;paint-order:stroke fill">بسم</span><span class="nm" data-i18n="pClear"></span></button>
+          <button data-preset="light"><span class="sw" style="background:#fdfaf2;color:#10261f">بسم</span><span class="nm" data-i18n="pLight"></span></button>
+          <button data-preset="green"><span class="sw" style="background:#0b3d2e;color:#fff">بسم</span><span class="nm" data-i18n="pGreen"></span></button>
         </div>
       </div>
-    </details>
 
-    <details open>
-      <summary>Ko'rinish</summary>
-      <div class="checks">
-        <label><input id="showAr" data-style type="checkbox" checked /> Arabcha</label>
-        <label><input id="showLabel" data-style type="checkbox" checked /> Sura va oyat raqami</label>
-        <label><input id="tajweed" data-style type="checkbox" /> Tajvid ranglari</label>
-        <label title="Qori o'qiyotgan so'z harfma-harf bo'yaladi (Muayqiliy, G'omidiy, Qatomiyda yo'q)"><input id="wordHl" data-style type="checkbox" checked /> O'qilayotgan so'zni bo'yash</label>
-        <label id="allScreensRow"><input id="allScreens" type="checkbox" checked /> Barcha monitorlarda</label>
+      <div class="card">
+        <p class="card-title" data-i18n="showOn"></p>
+        <label class="toggle"><span class="t"><b data-i18n="showAr"></b></span><input id="showAr" data-style type="checkbox" checked /><span class="slider"></span></label>
+        <label class="toggle"><span class="t"><b data-i18n="showLabel"></b></span><input id="showLabel" data-style type="checkbox" checked /><span class="slider"></span></label>
+        <label class="toggle"><span class="t"><b data-i18n="wordHl"></b><small data-i18n="wordHlSub"></small></span><input id="wordHl" data-style type="checkbox" checked /><span class="slider"></span></label>
+        <label class="toggle"><span class="t"><b data-i18n="tajweed"></b><small data-i18n="tajweedSub"></small></span><input id="tajweed" data-style type="checkbox" /><span class="slider"></span></label>
+        <div id="tajweedLegend" class="tj-legend hidden"></div>
       </div>
-      <div id="tajweedLegend" class="tj-legend hidden"></div>
-      <div class="row">
-        <button id="lockBtn">Joyini o'zgartirish</button>
-        <button id="visBtn">Yashirish</button>
+
+      <div class="card">
+        <p class="card-title" data-i18n="font"></p>
+        <div class="grid2">
+          <div>
+            <span class="lbl" data-i18n="fArabic"></span>
+            <select id="arFont" data-style>
+              <option value="Amiri Quran">Amiri Quran</option>
+              <option value="Amiri">Amiri</option>
+              <option value="Scheherazade New">Scheherazade New</option>
+              <option value="Noto Naskh Arabic">Noto Naskh Arabic</option>
+              <option value="Lateef">Lateef</option>
+              <option value="Reem Kufi">Reem Kufi (kufiy)</option>
+              <option value="Aref Ruqaa">Aref Ruqaa (ruq'a)</option>
+              <option value="Geeza Pro">Geeza Pro (macOS)</option>
+            </select>
+          </div>
+          <div>
+            <span class="lbl" data-i18n="fTranslation"></span>
+            <select id="trFont" data-style>
+              <option value="system" data-i18n="fSystem"></option>
+              <option value="Inter">Inter</option>
+              <option value="Roboto">Roboto</option>
+              <option value="Montserrat">Montserrat</option>
+              <option value="Nunito">Nunito</option>
+              <option value="PT Sans">PT Sans</option>
+              <option value="Merriweather">Merriweather (serif)</option>
+              <option value="Noto Serif">Noto Serif (serif)</option>
+            </select>
+          </div>
+          <div class="slider-field">
+            <span class="lbl"><span data-i18n="arSize"></span> <span class="val"><span id="arSizeVal"></span>px</span></span>
+            <input id="arSize" data-style type="range" min="20" max="90" value="40" />
+          </div>
+          <div class="slider-field">
+            <span class="lbl"><span data-i18n="trSize"></span> <span class="val"><span id="trSizeVal"></span>px</span></span>
+            <input id="trSize" data-style type="range" min="12" max="48" value="20" />
+          </div>
+          <div>
+            <span class="lbl" data-i18n="trWeight"></span>
+            <select id="trWeight" data-style>
+              <option value="400" data-i18n="wRegular"></option>
+              <option value="600" data-i18n="wSemi"></option>
+              <option value="700" data-i18n="wBold"></option>
+            </select>
+          </div>
+          <div class="slider-field">
+            <span class="lbl"><span data-i18n="lineH"></span> <span class="val" id="lineVal"></span></span>
+            <input id="line" data-style type="range" min="1.2" max="2.6" step="0.1" value="1.9" />
+          </div>
+        </div>
       </div>
-    </details>
-  </div>
 
-  <div class="card">
-    <details>
-      <summary>Tezkor tugmalar</summary>
-      <p class="hint" style="margin:4px 0 8px">
-        Tugmalar har qanday app ichida ishlaydi. Boshqa app'ga xalaqit bermasligi uchun standart sifatida
-        <kbd>⌃</kbd><kbd>⌥</kbd> (Control+Option) ishlatilgan. O'zgartirish uchun maydonni bosib, yangi kombinatsiyani bosing.
-        Klaviaturasiz boshqarish uchun menu bar'dagi ikonkadan foydalaning.
-      </p>
-      <div id="shortcutList"></div>
-    </details>
-  </div>
+      <div class="card">
+        <p class="card-title" data-i18n="colors"></p>
+        <div class="colors">
+          <label class="color"><input id="arColor" data-style type="color" value="#ffffff" /><span data-i18n="cArabic"></span></label>
+          <label class="color"><input id="trColor" data-style type="color" value="#e8eef5" /><span data-i18n="cTranslation"></span></label>
+          <label class="color"><input id="bgColor" data-style type="color" value="#0a0e14" /><span data-i18n="cBg"></span></label>
+          <label class="color"><input id="outlineColor" data-style type="color" value="#000000" /><span data-i18n="cOutline"></span></label>
+          <div class="color wide">
+            <input id="hlColor" data-style type="color" value="#ffd54a" data-i18n-aria="cHl" /><span data-i18n="cHl"></span>
+            <label class="auto switch" data-i18n-title="autoTitle"><span data-i18n="auto"></span><input id="hlAuto" data-style type="checkbox" checked /><span class="slider"></span></label>
+          </div>
+        </div>
+      </div>
 
+      <details class="card">
+        <summary><p class="card-title" data-i18n="bgContrast"></p></summary>
+        <div class="grid2">
+          <div class="slider-field">
+            <span class="lbl"><span data-i18n="bgAlpha"></span> <span class="val"><span id="bgAlphaVal"></span>%</span></span>
+            <input id="bgAlpha" data-style type="range" min="0" max="100" value="55" />
+          </div>
+          <div class="slider-field">
+            <span class="lbl"><span data-i18n="opacity"></span> <span class="val"><span id="opacityVal"></span>%</span></span>
+            <input id="opacity" data-style type="range" min="20" max="100" value="100" />
+          </div>
+          <div class="slider-field">
+            <span class="lbl"><span data-i18n="shadow"></span> <span class="val"><span id="shadowVal"></span>px</span></span>
+            <input id="shadow" data-style type="range" min="0" max="20" value="3" />
+          </div>
+          <div class="slider-field">
+            <span class="lbl"><span data-i18n="outline"></span> <span class="val"><span id="outlineVal"></span>px</span></span>
+            <input id="outline" data-style type="range" min="0" max="6" step="0.5" value="0" />
+          </div>
+          <div class="slider-field">
+            <span class="lbl"><span data-i18n="radius"></span> <span class="val"><span id="radiusVal"></span>px</span></span>
+            <input id="radius" data-style type="range" min="0" max="40" value="16" />
+          </div>
+          <div class="slider-field">
+            <span class="lbl"><span data-i18n="pad"></span> <span class="val"><span id="padVal"></span>px</span></span>
+            <input id="pad" data-style type="range" min="0" max="40" value="14" />
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <!-- ============ SOZLAMALAR ============ -->
+    <section data-tab="settings">
+      <div class="card">
+        <p class="card-title" data-i18n="language"></p>
+        <div class="seg" id="langSeg">
+          <button data-lang="en">English</button>
+          <button data-lang="uz">O'zbekcha</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <p class="card-title" data-i18n="subWin"></p>
+        <label class="toggle" id="allScreensRow"><span class="t"><b data-i18n="allScreens"></b><small data-i18n="allScreensSub"></small></span><input id="allScreens" type="checkbox" checked /><span class="slider"></span></label>
+        <p class="hint" style="margin:8px 0 0" data-i18n="moveHint"></p>
+      </div>
+
+      <div class="card">
+        <p class="card-title" data-i18n="shortcuts"></p>
+        <p class="hint" style="margin:0 0 8px" data-i18n="shortcutsHint"></p>
+        <div id="shortcutList"></div>
+      </div>
+
+      <div class="card">
+        <p class="card-title" data-i18n="cache"></p>
+        <div class="row-between">
+          <span class="hint"><span data-i18n="cacheHint"></span> <span id="cacheInfo"></span></span>
+          <button id="clearCacheBtn" class="btn" data-i18n="clear"></button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="i18n.js"></script>
   <script src="picker.js"></script>
   <script src="renderer.js"></script>
 </body>

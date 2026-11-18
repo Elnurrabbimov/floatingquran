@@ -1,99 +1,109 @@
-# Suzuvchi Quron
+# Floating Quran
 
-Quron tilovatini tinglash paytida oyat matni va tarjimasini **barcha oynalar ustida suzib turuvchi subtitle** sifatida ko'rsatadigan desktop ilova (macOS, Windows, Linux).
+A desktop app for macOS, Windows and Linux that plays Quran recitation and shows each verse with its translation as a **floating subtitle above every window**: your browser, editor, video calls, full-screen videos and the desktop.
 
-## Imkoniyatlar
+*Formerly “Suzuvchi Quron”. O'zbekcha: ilova o'zbek tilida ham ishlaydi — Sozlamalar → Til.*
 
-- Ekran ustida suzib turuvchi, sichqoncha o'tib ketadigan (click-through) subtitle — brauzer, Telegram, fullscreen video va "Show Desktop" ustida ham ko'rinadi; bir nechta monitor bo'lsa hammasida
-- 114 sura, 12 qori, oyatma-oyat ijro — subtitle audio bilan aniq sinxron
-- O'qilayotgan so'z harfma-harf bo'yaladi (karaoke uslubi; Quran.com so'z vaqtlari, 9 qorida); bo'yash rangi matn va fon rangiga qarab avtomatik tanlanadi
-- Tajvid rejimi: g'unna, ixfo, idg'om, iqlob, qalqala, madlar va boshqa qoidalar rangli (yoqib-o'chiriladi, izohi bilan)
-- 69 tilda 126 ta tarjima, bir vaqtda 4 tagacha tarjima; tarjimani yoqish/o'chirish
-- Qidiruvli tanlagichlar: `36`, `yosin`, `ya-sin`, `يس` — barchasi bir xil surani topadi
-- Uslub: shriftlar, ranglar, kontur, soya, fon, tayyor uslublar
-- Uzun oyatlarda oyna balandligi va shrift avtomatik moslashadi
-- Ijro turi: sahifa / sura / juz, oyatlar oralig'i (dan–gacha)
-- Har bir oyatni va umumiy qiroatni 1/2/3 marta yoki cheksiz takrorlash, qayta ijro
-- Disk keshi — bir marta tinglangan sura internetsiz ochiladi
-- Menu bar (tray) orqali boshqaruv va sozlanadigan global hotkey'lar
-- Lock screen / Control Center'da "Now Playing" va klaviatura media tugmalari
+## Features
 
-### Standart hotkey'lar
+- **Floating, click-through subtitle.** It stays on top of all apps, including full-screen video and "Show Desktop", and your clicks pass through it.
+- **Shows on every connected display**, or only on the main one.
+- **Word-by-word highlighting.** The word being recited lights up letter by letter, karaoke style. Supported for 9 reciters, using Quran.com word timings.
+- **Tajweed colors.** Ghunnah, ikhfa, idgham, iqlab, qalqalah, the madd types and other rules are shown in color, with a legend.
+- **Recitation:**
+  - all 114 surahs and 12 reciters, played verse by verse so the subtitle stays in sync;
+  - play by surah (with a verse range), page (1–604) or juz (1–30).
+- **Translations:** 126 translations in 69 languages. Up to 4 can be shown at once, and translations can be turned off.
+- **Automatic language and region.**
+  - The interface is English, or Uzbek when your system language or region is Uzbek.
+  - On first launch, the translation is picked from your region and system language (for example Uzbek in Uzbekistan, Russian in Russia, Turkish in Turkey, Urdu in Pakistan).
+- **Repeat:** each verse or the whole recitation, 1×, 2×, 3× or infinitely.
+- **Styles:**
+  - presets, fonts, colors, outline, shadow and background;
+  - the highlight color is chosen automatically to contrast with the text.
+- **Long verses fit automatically.** The window grows and the font shrinks as needed.
+- **Offline cache.** Surahs you have listened to play without internet.
+- **Controls:**
+  - a menu-bar (tray) menu and configurable global hotkeys;
+  - "Now Playing" and the keyboard media keys.
 
-| Amal | macOS | Windows / Linux |
+### Default hotkeys
+
+| Action | macOS | Windows / Linux |
 |---|---|---|
-| Subtitle'ni yashirish / ko'rsatish | `⌃⌥S` | `Ctrl+Alt+S` |
-| Play / pauza | `⌃⌥P` | `Ctrl+Alt+P` |
-| Keyingi oyat | `⌃⌥N` | `Ctrl+Alt+N` |
-| Oldingi oyat | `⌃⌥B` | `Ctrl+Alt+B` |
-| Subtitle joyini o'zgartirish | `⌃⌥M` | `Ctrl+Alt+M` |
+| Hide / show subtitle | `⌃⌥S` | `Ctrl+Alt+S` |
+| Play / pause | `⌃⌥P` | `Ctrl+Alt+P` |
+| Next verse | `⌃⌥N` | `Ctrl+Alt+N` |
+| Previous verse | `⌃⌥B` | `Ctrl+Alt+B` |
+| Move subtitle | `⌃⌥M` | `Ctrl+Alt+M` |
 
-Barchasi ilovaning "Tezkor tugmalar" bo'limida o'zgartiriladi.
+You can change all of them in **Settings → Keyboard shortcuts**.
 
-## O'rnatish
+## Install
 
-Installer'larni [Releases](https://github.com/Elnurrabbimov/floatingquran/releases/latest) sahifasidan yuklab oling:
+Download the installer from [Releases](https://github.com/Elnurrabbimov/floatingquran/releases/latest):
 
-| Platforma | Fayl |
+| Platform | File |
 |---|---|
-| macOS (Apple Silicon) | `SuzuvchiQuron-<versiya>-mac-arm64.dmg` |
-| macOS (Intel) | `SuzuvchiQuron-<versiya>-mac-x64.dmg` |
-| Windows | `SuzuvchiQuron-<versiya>-win-x64.exe` |
-| Linux | `SuzuvchiQuron-<versiya>-linux-x86_64.AppImage` |
+| macOS (Apple Silicon) | `FloatingQuran-<version>-mac-arm64.dmg` |
+| macOS (Intel) | `FloatingQuran-<version>-mac-x64.dmg` |
+| Windows 10/11 | `FloatingQuran-<version>-win-x64.exe` |
+| Linux | `FloatingQuran-<version>-linux-x86_64.AppImage` |
 
-**macOS:** ilova Apple tomonidan notarizatsiya qilinmagan, shuning uchun birinchi ochishda macOS bloklaydi.
+**macOS:** the app is not notarized by Apple yet, so macOS blocks it on first launch.
 
-1. `.dmg` ni oching va **Suzuvchi Quron** ni **Applications** papkasiga torting.
-2. Applications'dan ilovani oching — *"Apple could not verify..."* oynasi chiqadi, **Done** ni bosing.
-3. **System Settings → Privacy & Security** — pastda *"Suzuvchi Quron" was blocked* yonida **Open Anyway** → parol.
+1. Open the `.dmg` and drag **Floating Quran** into **Applications**.
+2. Open the app from Applications. When you see *"Apple could not verify…"*, click **Done**.
+3. Go to **System Settings → Privacy & Security** and click **Open Anyway** next to *"Floating Quran" was blocked*.
 
-Yoki terminalda bitta buyruq:
+You can also run this once in Terminal:
 
 ```sh
-xattr -cr "/Applications/Suzuvchi Quron.app"
+xattr -cr "/Applications/Floating Quran.app"
 ```
 
-> `.app` ni zip qilib Telegram va h.k. orqali yubormang — ichidagi symlink'lar va huquqlar buziladi, ilova ochilmaydi. Har doim `.dmg` ni yuboring.
+> Don't zip the `.app` and send it through messengers, because that breaks it. Share the `.dmg` instead.
 
-**Windows:** SmartScreen ogohlantirsa — **More info → Run anyway**.
+**Windows:** if SmartScreen shows a warning, click **More info → Run anyway**.
 
-**Linux:** `chmod +x SuzuvchiQuron-*.AppImage && ./SuzuvchiQuron-*.AppImage`. Subtitle shaffof bo'lishi uchun compositor (GNOME, KDE va h.k.) kerak.
+**Linux:** run `chmod +x FloatingQuran-*.AppImage && ./FloatingQuran-*.AppImage`. A compositor (GNOME, KDE, …) is required for transparency.
 
-## Ishlab chiqish
+## Development
 
-Node.js 20+ kerak.
+Requires Node.js 20+.
 
 ```sh
 npm install
-npm start            # ilovani koddan ishga tushirish
-npm run dist:mac     # macOS .dmg
-npm run dist:win     # Windows .exe (macOS'da ham yig'iladi)
-npm run dist:linux   # Linux AppImage (.deb faqat Linux'da yoki GNU binutils bilan)
-npm run icons        # build/icon.html dan ikonkalarni qayta yaratish
-bash scripts/release.sh   # dist/ dagi installer'lar bilan GitHub release (gh CLI kerak)
+npm start                 # run from source
+npm run dist:mac          # macOS .dmg
+npm run dist:win          # Windows .exe (also builds on macOS)
+npm run dist:linux        # Linux AppImage
+npm run icons             # regenerate icons from build/icon.html
+bash scripts/release.sh   # publish dist/ installers as a GitHub release (needs gh CLI)
 ```
 
-### Tuzilish
+### Structure
 
 ```
 src/
-  main.js       oynalar, overlay, tray, global hotkey'lar
-  preload.js    renderer ↔ main ko'prigi
-  index.html    asosiy oyna (player va sozlamalar)
-  renderer.js   ijro, sinxronizatsiya, kesh, sozlamalar
-  picker.js     qidiruvli tanlagich
-  overlay.html  suzuvchi subtitle oynasi
-  assets/       ikonkalar
-build/icon.html ikonka manbasi
-scripts/        yordamchi skriptlar
+  main.js       windows, overlay on every display, tray, global hotkeys
+  preload.js    renderer ↔ main bridge
+  i18n.js       UI strings (English, Uzbek)
+  index.html    main window
+  renderer.js   playback, sync, word highlighting, cache, settings
+  picker.js     searchable picker
+  overlay.html  floating subtitle (highlighting, tajweed)
+  assets/       icons
+build/          icon source, macOS signing hook
+scripts/        helper scripts
 ```
 
-## Ma'lumot manbalari
+## Data sources
 
-- Matn va tarjimalar: [Quran.com / Quran Foundation API](https://quran.com)
+- Text, translations, tajweed markup and word timings: [Quran.com / Quran Foundation API](https://quran.com)
 - Audio: [everyayah.com](https://everyayah.com)
-- Arabcha shriftlar: Google Fonts (Amiri Quran va boshqalar)
+- Arabic fonts: Google Fonts (Amiri Quran and others)
 
-## Litsenziya
+## License
 
 MIT
