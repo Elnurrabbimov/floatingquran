@@ -28,8 +28,14 @@ NOTES=$(cat <<'MD'
 | Windows 10/11 | `*-win-x64.exe` |
 | Linux | `*-linux-x86_64.AppImage` |
 
-**macOS:** ilova imzolanmagan. Birinchi ochishda Applications'da ilova ustida o'ng tugma → **Open**, yoki terminalda:
-`xattr -cr "/Applications/Suzuvchi Quron.app"`
+**macOS:** ilova Apple tomonidan notarizatsiya qilinmagan:
+1. `.dmg` ni oching, **Suzuvchi Quron** ni **Applications** ga torting.
+2. Ilovani oching → *"Apple could not verify..."* → **Done**.
+3. **System Settings → Privacy & Security** → **Open Anyway** → parol.
+
+Yoki terminalda: `xattr -cr "/Applications/Suzuvchi Quron.app"`
+
+> `.app` ni zip qilib Telegram orqali yubormang — ilova buziladi. `.dmg` ni yuboring.
 
 **Windows:** SmartScreen ogohlantirsa — **More info → Run anyway**.
 
@@ -38,8 +44,9 @@ MD
 )
 
 if gh release view "$TAG" --repo "$REPO" > /dev/null 2>&1; then
-  echo "Release ${TAG} bor — fayllar qayta yuklanmoqda..."
+  echo "Release ${TAG} bor — fayllar va matn yangilanmoqda..."
   gh release upload "$TAG" "${FILES[@]}" --repo "$REPO" --clobber
+  gh release edit "$TAG" --repo "$REPO" --notes "$NOTES"
 else
   echo "Release ${TAG} yaratilmoqda..."
   gh release create "$TAG" "${FILES[@]}" --repo "$REPO" --target main \

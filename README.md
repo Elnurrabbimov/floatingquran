@@ -38,11 +38,19 @@ Installer'larni [Releases](https://github.com/Elnurrabbimov/floatingquran/releas
 | Windows | `SuzuvchiQuron-<versiya>-win-x64.exe` |
 | Linux | `SuzuvchiQuron-<versiya>-linux-x86_64.AppImage` |
 
-**macOS:** ilova imzolanmagan, shuning uchun birinchi ochishda macOS bloklaydi. Applications'da ilova ustida o'ng tugma → **Open**, yoki:
+**macOS:** ilova Apple tomonidan notarizatsiya qilinmagan, shuning uchun birinchi ochishda macOS bloklaydi.
+
+1. `.dmg` ni oching va **Suzuvchi Quron** ni **Applications** papkasiga torting.
+2. Applications'dan ilovani oching — *"Apple could not verify..."* oynasi chiqadi, **Done** ni bosing.
+3. **System Settings → Privacy & Security** — pastda *"Suzuvchi Quron" was blocked* yonida **Open Anyway** → parol.
+
+Yoki terminalda bitta buyruq:
 
 ```sh
 xattr -cr "/Applications/Suzuvchi Quron.app"
 ```
+
+> `.app` ni zip qilib Telegram va h.k. orqali yubormang — ichidagi symlink'lar va huquqlar buziladi, ilova ochilmaydi. Har doim `.dmg` ni yuboring.
 
 **Windows:** SmartScreen ogohlantirsa — **More info → Run anyway**.
 
