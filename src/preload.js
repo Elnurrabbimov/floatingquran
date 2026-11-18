@@ -2,10 +2,17 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('bridge', {
   showVerse: (payload) => ipcRenderer.send('verse:show', payload),
+  sendTiming: (payload) => ipcRenderer.send('verse:timing', payload),
+  sendClock: (payload) => ipcRenderer.send('verse:clock', payload),
+  onTiming: (cb) => ipcRenderer.on('verse:timing', (_e, p) => cb(p)),
+  onClock: (cb) => ipcRenderer.on('verse:clock', (_e, p) => cb(p)),
   setStyle: (style) => ipcRenderer.send('overlay:style', style),
   toggleLock: () => ipcRenderer.send('overlay:toggle-lock'),
   toggleVisible: () => ipcRenderer.send('overlay:toggle-visible'),
   fitWindow: (height) => ipcRenderer.invoke('overlay:fit', height),
+  getAllScreens: () => ipcRenderer.invoke('overlay:get-all-screens'),
+  setAllScreens: (on) => ipcRenderer.send('overlay:set-all-screens', on),
+  onAllScreens: (cb) => ipcRenderer.on('overlay:all-screens', (_e, on) => cb(on)),
   setPlayerState: (state) => ipcRenderer.send('player:state', state),
   getShortcuts: () => ipcRenderer.invoke('shortcuts:get'),
   setShortcut: (action, accel) => ipcRenderer.invoke('shortcuts:set', action, accel),

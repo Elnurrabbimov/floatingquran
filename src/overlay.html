@@ -16,6 +16,7 @@
       --shadow: 3px; --outline: 0px; --outline-color: #000000;
       --radius: 16px; --pad: 14px; --line: 1.9;
       --opacity: 1;
+      --hl-color: #ffd54a;
     }
     html, body {
       margin: 0; height: 100%; background: transparent; overflow: hidden;
@@ -51,6 +52,15 @@
       border-top: 1px solid color-mix(in srgb, var(--tr-color) 25%, transparent);
     }
     #key { font-family: var(--tr-font); font-size: 12px; opacity: .6; margin-top: 4px; color: var(--label-color); }
+    /* So'zma-so'z bo'yash: har bir so'z ustida bir xil matnli .hl qatlam, clip-path bilan o'ngdan chapga ochiladi */
+    .w { display: inline-grid; white-space: nowrap; }
+    .w > span { grid-area: 1 / 1; }
+    .w .hl {
+      color: var(--hl-color);
+      text-shadow: none; pointer-events: none;
+      clip-path: inset(0 0 0 100%);
+    }
+    body.nohl .w .hl { display: none; }
     .hidden { display: none; }
     body.unlocked #box { outline: 2px dashed #4fc3f7; -webkit-app-region: drag; cursor: move; }
     body.unlocked::before {
@@ -107,6 +117,89 @@
       }));
     }
 
+    // --- So'zma-so'z bo'yash ---
+    let verseId = 0;     // overlay'da hozir ko'rsatilgan oyat
+    let shownId = 0;     // matni DOM'ga chizilgan oyat
+    let timing = null;   // { id, segs: [[wordIndex, startMs, endMs], ...] }
+    let clock = null;    // { id, t, rate, playing, at }
+    let hlEls = [];      // so'z indeksi -> .hl element
+    let hlState = [];    // oxirgi qo'llangan holat (keraksiz DOM yozuvlarisiz)
+    let rafId = 0;
+
+    function renderArabic(p) {
+      hlEls = []; hlState = [];
+      if (!p.words?.length) { ar.textContent = p.arabic || ''; return; }
+      const frag = document.createDocumentFragment();
+      p.words.forEach((w, i) => {
+        if (i) frag.append(' ');
+        const s = document.createElement('span');
+        s.className = 'w';
+        const base = document.createElement('span');
+        base.textContent = w;
+        const hl = document.createElement('span');
+        hl.className = 'hl';
+        hl.setAttribute('aria-hidden', 'true');
+        hl.textContent = w;
+        s.append(base, hl);
+        frag.append(s);
+        hlEls.push(hl);
+      });
+      ar.replaceChildren(frag);
+    }
+
+    function clipFor(p) {
+      if (p <= 0) return 'inset(0 0 0 100%)';
+      if (p >= 1) return 'inset(-60% -20% -60% -20%)';
+      // arabcha o'ngdan chapga o'qiladi: chap chegarani asta ochamiz
+      return `inset(-60% -20% -60% ${((1 - p) * 100).toFixed(1)}%)`;
+    }
+
+    function paint() {
+      rafId = 0;
+      if (!timing || !clock || timing.id !== shownId || clock.id !== shownId) return;
+      const t = clock.t + (clock.playing ? (Date.now() - clock.at) * clock.rate : 0);
+      const prog = new Array(hlEls.length).fill(0);
+      for (const [w, a, b] of timing.segs) {
+        if (w < 0 || w >= prog.length) continue;
+        const p = t >= b ? 1 : t <= a ? 0 : (t - a) / Math.max(1, b - a);
+        prog[w] = Math.max(prog[w], p);
+      }
+      // Vaqti berilmagan so'z: keyingi so'z boshlangan bo'lsa, u ham o'qilgan
+      let later = 0;
+      for (let i = prog.length - 1; i >= 0; i--) {
+        if (!timing.has[i]) prog[i] = later > 0 ? 1 : 0;
+        later = Math.max(later, prog[i]);
+      }
+      prog.forEach((p, i) => {
+        const v = p <= 0 ? 0 : p >= 1 ? 1 : Math.round(p * 100) / 100;
+        if (hlState[i] === v) return;
+        hlState[i] = v;
+        hlEls[i].style.clipPath = clipFor(v);
+      });
+      if (clock.playing) rafId = requestAnimationFrame(paint);
+    }
+
+    function schedulePaint() {
+      if (!rafId) rafId = requestAnimationFrame(paint);
+    }
+
+    function resetHighlight() {
+      hlState = [];
+      hlEls.forEach((el) => (el.style.clipPath = ''));
+    }
+
+    window.bridge.onTiming((t) => {
+      timing = { ...t, has: [] };
+      for (const [w] of t.segs) timing.has[w] = true;
+      schedulePaint();
+    });
+    window.bridge.onClock((c) => {
+      // Orqaga qaytilsa (oyatni takrorlash) — bo'yoqni tozalab, qaytadan
+      if (clock && c.id === clock.id && c.t < clock.t - 200) resetHighlight();
+      clock = c;
+      schedulePaint();
+    });
+
     function hexToRgba(hex, a) {
       const n = parseInt(hex.slice(1), 16);
       return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
@@ -115,9 +208,13 @@
     window.bridge.onVerse((p) => {
       previewing = false;
       if (!p) { box.classList.remove('visible'); return; }
+      verseId = p.id;
       box.classList.remove('visible');
       setTimeout(() => {
-        ar.textContent = p.arabic || '';
+        if (p.id !== verseId) return; // orada keyingi oyat kelgan
+        renderArabic(p);
+        shownId = p.id;
+        schedulePaint();
         setTranslations(p.translations || [p.translation]);
         key.textContent = p.label || '';
         refit().then(() => box.classList.add('visible'));
@@ -143,6 +240,8 @@
       set('--pad', s.pad + 'px');
       set('--line', s.line);
       set('--opacity', s.opacity);
+      if (s.hlColor) set('--hl-color', s.hlColor);
+      document.body.classList.toggle('nohl', s.wordHl === false);
       ar.classList.toggle('hidden', !s.showArabic);
       tr.classList.toggle('hidden', !s.showTranslation);
       key.classList.toggle('hidden', !s.showLabel);

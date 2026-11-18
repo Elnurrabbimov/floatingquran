@@ -3,8 +3,26 @@ const path = require('path');
 const fs = require('fs');
 
 let mainWin = null;
-let overlayWin = null;
-let overlayLocked = true; // true = click-through, false = drag mumkin
+// Har bir monitor uchun alohida overlay oyna: displayId -> BrowserWindow
+const overlays = new Map();
+let overlayLocked = true;   // true = click-through, false = drag mumkin
+let overlayVisible = true;
+let lastVerse = null;
+let lastTiming = null;
+let lastClock = null;
+let lastStyle = null;
+
+// Oddiy sozlamalar (userData/settings.json)
+const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
+let settings = { allScreens: true };
+function loadSettings() {
+  try { settings = { ...settings, ...JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) }; } catch {}
+}
+function saveSettings() {
+  try { fs.writeFileSync(settingsFile(), JSON.stringify(settings, null, 2)); } catch (e) { console.error(e); }
+}
+const overlayWindows = () => [...overlays.values()].filter((w) => !w.isDestroyed());
+const sendOverlays = (channel, payload) => overlayWindows().forEach((w) => w.webContents.send(channel, payload));
 
 function createMainWindow() {
   mainWin = new BrowserWindow({
@@ -21,34 +39,64 @@ function createMainWindow() {
   });
 }
 
-function createOverlayWindow() {
-  const { workArea } = screen.getPrimaryDisplay();
+function createOverlayWindow(display) {
+  const { workArea } = display;
   const width = Math.min(1000, workArea.width - 80);
   const height = 240;
 
-  overlayWin = new BrowserWindow({
+  const win = new BrowserWindow({
     width,
     height,
     x: Math.round(workArea.x + (workArea.width - width) / 2),
     y: Math.round(workArea.y + workArea.height - height - 40),
+    show: overlayVisible,
     transparent: true,
     frame: false,
     hasShadow: false,
     resizable: true,
     skipTaskbar: true,
-    focusable: false,
+    focusable: !overlayLocked,
     alwaysOnTop: true,
     // macOS: panel turi fullscreen app'lar ustida ham ko'rinadi
     type: process.platform === 'darwin' ? 'panel' : undefined,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), backgroundThrottling: false },
   });
 
-  overlayWin.setAlwaysOnTop(true, 'screen-saver');
-  overlayWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  overlayWin.setIgnoreMouseEvents(true, { forward: true });
-  const behavior = makeStationary(overlayWin);
+  win.setAlwaysOnTop(true, 'screen-saver');
+  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  win.setIgnoreMouseEvents(overlayLocked, { forward: true });
+  const behavior = makeStationary(win);
   if (process.env.SQ_DEBUG) console.log('collectionBehavior =', behavior);
-  overlayWin.loadFile(path.join(__dirname, 'overlay.html'));
+  win.webContents.on('did-finish-load', () => {
+    if (lastStyle) win.webContents.send('overlay:style', { ...lastStyle, preview: false });
+    win.webContents.send('overlay:locked', overlayLocked);
+    if (lastVerse) win.webContents.send('verse:show', lastVerse);
+    if (lastTiming) win.webContents.send('verse:timing', lastTiming);
+    if (lastClock) win.webContents.send('verse:clock', lastClock);
+  });
+  win.loadFile(path.join(__dirname, 'overlay.html'));
+  return win;
+}
+
+// Kerakli monitorlarda overlay bo'lsin, keraksizlarini yopamiz
+function syncOverlays() {
+  const displays = settings.allScreens ? screen.getAllDisplays() : [screen.getPrimaryDisplay()];
+  const wanted = new Set(displays.map((d) => d.id));
+  for (const [id, win] of overlays) {
+    if (!wanted.has(id) || win.isDestroyed()) {
+      if (!win.isDestroyed()) win.destroy();
+      overlays.delete(id);
+    }
+  }
+  for (const d of displays) if (!overlays.has(d.id)) overlays.set(d.id, createOverlayWindow(d));
+  updateTray();
+}
+
+function setAllScreens(on) {
+  settings.allScreens = !!on;
+  saveSettings();
+  syncOverlays();
+  mainWin?.webContents.send('overlay:all-screens', settings.allScreens);
 }
 
 // macOS: "Show Desktop" va Mission Control'da oyna joyida qolishi uchun
@@ -81,20 +129,19 @@ function makeStationary(win) {
 
 function setOverlayLocked(locked) {
   overlayLocked = locked;
-  if (!overlayWin) return;
-  overlayWin.setIgnoreMouseEvents(locked, { forward: true });
-  overlayWin.setFocusable(!locked);
-  overlayWin.webContents.send('overlay:locked', locked);
+  for (const w of overlayWindows()) {
+    w.setIgnoreMouseEvents(locked, { forward: true });
+    w.setFocusable(!locked);
+    w.webContents.send('overlay:locked', locked);
+  }
   mainWin?.webContents.send('overlay:locked', locked);
   updateTray();
 }
 
 function toggleOverlayVisible() {
-  if (!overlayWin) return;
-  if (overlayWin.isVisible()) overlayWin.hide();
-  else overlayWin.showInactive();
-  const visible = overlayWin.isVisible();
-  mainWin?.webContents.send('overlay:visible', visible);
+  overlayVisible = !overlayVisible;
+  for (const w of overlayWindows()) overlayVisible ? w.showInactive() : w.hide();
+  mainWin?.webContents.send('overlay:visible', overlayVisible);
   updateTray();
 }
 
@@ -165,7 +212,8 @@ function createTray() {
 function updateTray() {
   if (!tray) return;
   const accel = (k) => (shortcuts[k] && !shortcutErrors[k] ? shortcuts[k] : undefined);
-  const visible = overlayWin?.isVisible() ?? true;
+  const visible = overlayVisible;
+  const multi = screen.getAllDisplays().length > 1;
   tray.setContextMenu(Menu.buildFromTemplate([
     ...(playerState.title ? [{ label: playerState.title, enabled: false }, { type: 'separator' }] : []),
     { label: visible ? 'Subtitle\'ni yashirish' : 'Subtitle\'ni ko\'rsatish', accelerator: accel('toggleSubtitle'), click: toggleOverlayVisible },
@@ -174,6 +222,7 @@ function updateTray() {
     { label: 'Oldingi oyat', accelerator: accel('prevAyah'), click: () => playerCmd('prev') },
     { type: 'separator' },
     { label: overlayLocked ? 'Subtitle joyini o\'zgartirish' : 'Subtitle joyini qulflash', accelerator: accel('moveSubtitle'), click: () => setOverlayLocked(!overlayLocked) },
+    ...(multi ? [{ label: 'Barcha monitorlarda', type: 'checkbox', checked: settings.allScreens, click: (item) => setAllScreens(item.checked) }] : []),
     { label: 'Asosiy oynani ochish', click: showMainWindow },
     { type: 'separator' },
     { label: 'Chiqish', role: 'quit' },
@@ -186,27 +235,41 @@ app.whenReady().then(() => {
     try { app.dock.setIcon(path.join(__dirname, '..', 'build', 'icon.png')); } catch {}
   }
 
+  loadSettings();
   createMainWindow();
-  createOverlayWindow();
+  syncOverlays();
   createTray();
   loadShortcuts();
   registerShortcuts();
 
   // Renderer -> overlay: joriy oyat
   ipcMain.on('verse:show', (_e, payload) => {
-    overlayWin?.webContents.send('verse:show', payload);
+    lastVerse = payload;
+    lastTiming = lastClock = null;
+    sendOverlays('verse:show', payload);
   });
-  let lastStyle = null;
+  // So'zma-so'z bo'yash: so'z vaqtlari va audio soati
+  ipcMain.on('verse:timing', (_e, payload) => {
+    lastTiming = payload;
+    sendOverlays('verse:timing', payload);
+  });
+  ipcMain.on('verse:clock', (_e, payload) => {
+    lastClock = payload;
+    sendOverlays('verse:clock', payload);
+  });
   ipcMain.on('overlay:style', (_e, style) => {
     lastStyle = style;
-    overlayWin?.webContents.send('overlay:style', style);
+    sendOverlays('overlay:style', style);
   });
-  overlayWin.webContents.on('did-finish-load', () => {
-    if (lastStyle) overlayWin.webContents.send('overlay:style', { ...lastStyle, preview: false });
-  });
+  // Monitor ulansa / uzilsa overlay'lar ham qo'shiladi / yopiladi
+  screen.on('display-added', syncOverlays);
+  screen.on('display-removed', syncOverlays);
+  ipcMain.handle('overlay:get-all-screens', () => ({ on: settings.allScreens, count: screen.getAllDisplays().length }));
+  ipcMain.on('overlay:set-all-screens', (_e, on) => setAllScreens(on));
   // Overlay balandligini matnga moslash (pastki cheti joyida qoladi).
   // Ruxsat etilgan maksimal balandlikni qaytaradi — overlay shunga qarab shriftni kichraytiradi.
-  ipcMain.handle('overlay:fit', (_e, needed) => {
+  ipcMain.handle('overlay:fit', (e, needed) => {
+    const overlayWin = BrowserWindow.fromWebContents(e.sender);
     if (!overlayWin) return 0;
     const b = overlayWin.getBounds();
     const wa = screen.getDisplayMatching(b).workArea;

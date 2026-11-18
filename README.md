@@ -4,13 +4,15 @@ Quron tilovatini tinglash paytida oyat matni va tarjimasini **barcha oynalar ust
 
 ## Imkoniyatlar
 
-- Ekran ustida suzib turuvchi, sichqoncha o'tib ketadigan (click-through) subtitle — brauzer, Telegram, fullscreen video va "Show Desktop" ustida ham ko'rinadi
+- Ekran ustida suzib turuvchi, sichqoncha o'tib ketadigan (click-through) subtitle — brauzer, Telegram, fullscreen video va "Show Desktop" ustida ham ko'rinadi; bir nechta monitor bo'lsa hammasida
 - 114 sura, 12 qori, oyatma-oyat ijro — subtitle audio bilan aniq sinxron
+- O'qilayotgan so'z harfma-harf bo'yaladi (karaoke uslubi; Quran.com so'z vaqtlari, 9 qorida); bo'yash rangi matn va fon rangiga qarab avtomatik tanlanadi
 - 69 tilda 126 ta tarjima, bir vaqtda 4 tagacha tarjima; tarjimani yoqish/o'chirish
 - Qidiruvli tanlagichlar: `36`, `yosin`, `ya-sin`, `يس` — barchasi bir xil surani topadi
 - Uslub: shriftlar, ranglar, kontur, soya, fon, tayyor uslublar
 - Uzun oyatlarda oyna balandligi va shrift avtomatik moslashadi
-- Takrorlash (oyat / sura), qayta ijro
+- Ijro turi: sahifa / sura / juz, oyatlar oralig'i (dan–gacha)
+- Har bir oyatni va umumiy qiroatni 1/2/3 marta yoki cheksiz takrorlash, qayta ijro
 - Disk keshi — bir marta tinglangan sura internetsiz ochiladi
 - Menu bar (tray) orqali boshqaruv va sozlanadigan global hotkey'lar
 - Lock screen / Control Center'da "Now Playing" va klaviatura media tugmalari

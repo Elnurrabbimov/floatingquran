@@ -80,19 +80,22 @@ const UZ_NAMES = [
 
 // everyayah.com papka nomi, ko'rinadigan nom, qidiruv uchun qo'shimcha nomlar
 const RECITERS = [
-  ['Alafasy_128kbps', 'Mishari Rashid al-Afasy', 'mishary alafasy afasi'],
-  ['Abdul_Basit_Murattal_192kbps', 'Abdulbosit Abdussamad', 'abdul basit abdulbasit murattal'],
-  ['Abdurrahmaan_As-Sudais_192kbps', 'Abdurrahmon as-Sudays', 'sudais sudays'],
-  ['Husary_128kbps', 'Mahmud Xalil al-Husariy', 'husary husari mahmoud khalil'],
-  ['Minshawy_Murattal_128kbps', 'Muhammad Siddiq al-Minshoviy', 'minshawi minshavi'],
-  ['Saood_ash-Shuraym_128kbps', "Sa'ud ash-Shuraym", 'shuraim shuraym saud'],
-  ['Abu_Bakr_Ash-Shaatree_128kbps', 'Abu Bakr ash-Shotiriy', 'shatri shatree shotiri'],
-  ['Hani_Rifai_192kbps', 'Honi ar-Rifoiy', 'hani rifai'],
-  ['Yasser_Ad-Dussary_128kbps', 'Yosir ad-Dusariy', 'yasser dossari dosari'],
+  ['Alafasy_128kbps', 'Mishari Rashid al-Afasy', 'mishary alafasy afasi', 7],
+  ['Abdul_Basit_Murattal_192kbps', 'Abdulbosit Abdussamad', 'abdul basit abdulbasit murattal', 2],
+  ['Abdurrahmaan_As-Sudais_192kbps', 'Abdurrahmon as-Sudays', 'sudais sudays', 3],
+  ['Husary_128kbps', 'Mahmud Xalil al-Husariy', 'husary husari mahmoud khalil', 6],
+  ['Minshawy_Murattal_128kbps', 'Muhammad Siddiq al-Minshoviy', 'minshawi minshavi', 9],
+  ['Saood_ash-Shuraym_128kbps', "Sa'ud ash-Shuraym", 'shuraim shuraym saud', 10],
+  ['Abu_Bakr_Ash-Shaatree_128kbps', 'Abu Bakr ash-Shotiriy', 'shatri shatree shotiri', 4],
+  ['Hani_Rifai_192kbps', 'Honi ar-Rifoiy', 'hani rifai', 5],
+  ['Yasser_Ad-Dussary_128kbps', 'Yosir ad-Dusariy', 'yasser dossari dosari', 97],
   ['MaherAlMuaiqly128kbps', 'Mohir al-Muayqiliy', 'maher muaiqly muayqili'],
   ['Ghamadi_40kbps', "Saad al-G'omidiy", 'ghamdi ghamadi gomidi saad'],
   ['Nasser_Alqatami_128kbps', 'Nosir al-Qatomiy', 'nasser qatami qatomi'],
 ];
+
+// Quran.com recitation id (4-element) — so'zma-so'z vaqtlar shu orqali olinadi
+const QDC_ID = Object.fromEntries(RECITERS.filter((r) => r[3]).map((r) => [r[0], r[3]]));
 
 let chapters = [];
 
@@ -269,6 +272,7 @@ async function buildQueue(sel, translationIds) {
       key: v.key,
       label: `${shortSurahName(v.chapter)} ${v.key}`,
       arabic: v.arabic,
+      words: v.words,
       translations: v.translations,
     });
   }
@@ -328,7 +332,7 @@ async function loadVerses(kind, id, translationIds) {
   let page = 1;
   while (page) {
     const d = await getJSON(
-      `${API}/verses/by_${kind}/${id}?translations=${translationIds}&fields=text_uthmani&words=false&per_page=300&page=${page}`
+      `${API}/verses/by_${kind}/${id}?translations=${translationIds}&fields=text_uthmani&words=true&word_fields=text_uthmani&per_page=300&page=${page}`
     );
     for (const v of d.verses) {
       out.push({
@@ -336,6 +340,7 @@ async function loadVerses(kind, id, translationIds) {
         verseNumber: v.verse_number,
         key: v.verse_key,
         arabic: v.text_uthmani,
+        words: verseWords(v),
         translations: pickTranslations(v, translationIds),
       });
     }
@@ -345,12 +350,68 @@ async function loadVerses(kind, id, translationIds) {
 }
 
 async function loadBismillah(translationIds) {
-  const d = await getJSON(`${API}/verses/by_key/1:1?translations=${translationIds}&fields=text_uthmani&words=false`);
-  return { arabic: d.verse.text_uthmani, translations: pickTranslations(d.verse, translationIds) };
+  const d = await getJSON(`${API}/verses/by_key/1:1?translations=${translationIds}&fields=text_uthmani&words=true&word_fields=text_uthmani`);
+  return { arabic: d.verse.text_uthmani, words: verseWords(d.verse), translations: pickTranslations(d.verse, translationIds) };
+}
+
+// Oyat so'zlari (oxiridagi oyat raqami belgisisiz)
+function verseWords(v) {
+  return (v.words || []).filter((w) => w.char_type_name === 'word').map((w) => w.text_uthmani || w.text);
+}
+
+// --- So'zma-so'z bo'yash: Quran.com so'z vaqtlari (sura audio fayli bo'yicha) ---
+// everyayah oyat fayllari Quran.com yozuvlari bilan bir xil, shuning uchun vaqtni oyat boshiga nisbatan olamiz.
+const timingMemo = new Map(); // `${qdcId}:${chapter}` -> Promise<Map(verseKey -> { dur, segs })>
+
+function chapterTimings(qdcId, chapter) {
+  const k = `${qdcId}:${chapter}`;
+  if (!timingMemo.has(k)) {
+    const p = getJSON(`${API}/audio/reciters/${qdcId}/audio_files?chapter=${chapter}&segments=true`).then((d) => {
+      const m = new Map();
+      for (const t of d.audio_files?.[0]?.verse_timings || []) {
+        const from = t.timestamp_from;
+        const segs = (t.segments || [])
+          .filter((s) => s.length === 3)
+          .map(([w, a, b]) => [w - 1, Math.max(0, a - from), Math.max(0, b - from)]);
+        m.set(t.verse_key, { dur: t.timestamp_to - from, segs });
+      }
+      return m;
+    });
+    p.catch(() => timingMemo.delete(k));
+    timingMemo.set(k, p);
+  }
+  return timingMemo.get(k);
+}
+
+async function itemTiming(item) {
+  const qdcId = QDC_ID[$('reciter').value];
+  if (!qdcId || !item.words?.length) return null;
+  const key = item.isBasmala ? '1:1' : item.key;
+  try {
+    const t = (await chapterTimings(qdcId, +key.split(':')[0])).get(key);
+    return t?.segs.length ? t : null;
+  } catch { return null; }
+}
+
+let verseSeq = 0; // overlay'da qaysi oyatga tegishli ekanini bilish uchun
+let clockRate = 1; // audio vaqti -> Quran.com vaqti (yozuvlar uzunligi biroz farq qilsa)
+
+function sendClock() {
+  const a = current;
+  if (!a) return;
+  window.bridge.sendClock({
+    id: verseSeq,
+    t: a.currentTime * 1000 * clockRate,
+    rate: clockRate,
+    playing: !a.paused && !a.ended,
+    at: Date.now(),
+  });
 }
 
 function showItem(item) {
-  window.bridge.showVerse({ arabic: item.arabic, translations: item.translations, label: item.label });
+  verseSeq++;
+  clockRate = 1;
+  window.bridge.showVerse({ id: verseSeq, arabic: item.arabic, words: item.words, translations: item.translations, label: item.label });
   window.bridge.setPlayerState({ title: item.label });
   updateNowPlaying(item);
 }
@@ -372,7 +433,7 @@ async function makeAudio(i) {
 
 function releaseAudio(a) {
   if (!a) return;
-  a.onended = a.onerror = a.onplay = a.onpause = null;
+  a.onended = a.onerror = a.onplay = a.onpause = a.onplaying = a.onseeked = a.ontimeupdate = null;
   a.pause();
   if (a._blobUrl) URL.revokeObjectURL(a._blobUrl);
 }
@@ -438,9 +499,26 @@ async function playIndex(i) {
 
   current = audio;
   current.volume = +$('volume').value / 100;
-  current.onended = handleEnded;
-  current.onplay = current.onpause = updatePlayBtn;
+  current.onended = () => { sendClock(); handleEnded(); };
+  current.onplay = updatePlayBtn;
+  current.onpause = () => { updatePlayBtn(); sendClock(); };
+  current.onplaying = current.onseeked = current.ontimeupdate = sendClock;
   current.play().catch((e) => setStatus('Ijro xatosi: ' + e.message));
+
+  // So'z vaqtlari — kelguncha matn oddiy ko'rinadi
+  const seq = verseSeq;
+  itemTiming(item).then((t) => {
+    if (!t || token !== playToken || seq !== verseSeq) return;
+    const setRate = () => {
+      const d = audio.duration * 1000;
+      const r = d > 0 ? t.dur / d : 1;
+      clockRate = r > 0.9 && r < 1.1 ? r : 1;
+      window.bridge.sendTiming({ id: seq, segs: t.segs });
+      sendClock();
+    };
+    if (audio.readyState >= 1) setRate();
+    else audio.addEventListener('loadedmetadata', setRate, { once: true });
+  });
 
   // Keyingi oyatni oldindan yuklash — oyatlar orasida pauza bo'lmasin
   const next = i + 1 < queue.length ? i + 1 : rangeRepeat() > 1 ? 0 : -1;
@@ -598,7 +676,51 @@ function readStyle() {
     bgAlpha: +v('bgAlpha') / 100, opacity: +v('opacity') / 100,
     shadow: +v('shadow'), outline: +v('outline'), radius: +v('radius'), pad: +v('pad'),
     showArabic: $('showAr').checked, showTranslation: $('showTr').checked, showLabel: $('showLabel').checked,
+    wordHl: $('wordHl').checked, hlColor: currentHlColor(),
   };
+}
+
+// --- Bo'yash rangini avtomatik tanlash ---
+// Matn rangidan iloji boricha farqli, fonda esa yaxshi ko'rinadigan rang.
+const HL_CANDIDATES = [
+  '#ffd54a', '#00e5ff', '#4ade80', '#ff8a3d', '#ff5fa2', '#60a5fa', '#c084fc', '#ef4444',
+  '#ffffff', '#0f766e', '#b45309', '#1d4ed8', '#be123c', '#15803d', '#111111',
+];
+const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+const lin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+const luminance = (rgb) => { const [r, g, b] = rgb.map(lin); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+const contrast = (a, b) => { const [x, y] = [luminance(a), luminance(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+function oklab(rgb) {
+  const [r, g, b] = rgb.map(lin);
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675778 * s];
+}
+const labDist = (a, b) => { const [x, y] = [oklab(a), oklab(b)]; return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]); };
+
+function autoHlColor(textHex, bgHex, bgAlpha) {
+  const text = hexRgb(textHex);
+  // Shaffof fon bo'lsa orqada nima borligini bilmaymiz — o'rtacha to'q fon deb olamiz
+  const bg = hexRgb(bgHex).map((c) => Math.round(c * bgAlpha + 40 * (1 - bgAlpha)));
+  let best = HL_CANDIDATES[0], bestScore = -1;
+  HL_CANDIDATES.forEach((h, i) => {
+    const c = hexRgb(h);
+    const cr = contrast(c, bg);
+    // matndan farqi + fonda o'qilishi (kamida 3:1); teng bo'lsa ro'yxatdagi oldingisi (sariq) afzal
+    const score = Math.min(labDist(c, text) / 0.18, 1) * 2 + Math.min(cr / 4.5, 1) * 1.5 - (cr < 3 ? 2 : 0) - i * 0.01;
+    if (score > bestScore) { bestScore = score; best = h; }
+  });
+  return best;
+}
+
+function currentHlColor() {
+  const auto = $('hlAuto').checked;
+  $('hlColor').disabled = auto;
+  if (auto) $('hlColor').value = autoHlColor($('arColor').value, $('bgColor').value, +$('bgAlpha').value / 100);
+  return $('hlColor').value;
 }
 
 function pushStyle(preview = false) {
@@ -693,6 +815,13 @@ window.bridge.onPlayerCmd((cmd) => {
   else if (cmd === 'next') { if (queue.length && index >= 0) playIndex(index + 1); }
   else if (cmd === 'prev') { if (queue.length) playIndex(Math.max(0, index - 1)); }
 });
+// Bir nechta monitor: subtitle hammasida yoki faqat asosiysida
+window.bridge.getAllScreens().then(({ on, count }) => {
+  $('allScreens').checked = on;
+  $('allScreensRow').title = `Ulangan monitorlar: ${count}`;
+});
+$('allScreens').addEventListener('change', (e) => window.bridge.setAllScreens(e.target.checked));
+window.bridge.onAllScreens((on) => { $('allScreens').checked = on; });
 window.bridge.onVisible((visible) => {
   $('visBtn').textContent = visible ? 'Yashirish' : 'Ko\'rsatish';
 });
