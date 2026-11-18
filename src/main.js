@@ -3,16 +3,28 @@ const path = require('path');
 const fs = require('fs');
 const I18N = require('./i18n');
 
-// Ilova avval "Suzuvchi Quron" deb atalgan: eski sozlamalar, tarix va keshni yangi papkaga ko'chiramiz
+// Ilova avval "Suzuvchi Quron" deb atalgan: eski sozlamalar, tarix va keshni yangi papkaga ko'chiramiz.
+// Yig'ilgan app'da Electron userData papkasini kod ishlashidan oldin yaratadi, shuning uchun
+// "papka bormi" emas, belgi-fayl tekshiriladi va faqat kerakli narsalar (oynalar ochilmasidan) ko'chiriladi.
 (function migrateUserData() {
+  const newDir = app.getPath('userData');
+  const oldDir = path.join(app.getPath('appData'), 'Suzuvchi Quron');
+  const marker = path.join(newDir, '.migrated-from-suzuvchi-quron');
   try {
-    const newDir = app.getPath('userData');
-    const oldDir = path.join(app.getPath('appData'), 'Suzuvchi Quron');
-    if (fs.existsSync(newDir) || !fs.existsSync(oldDir)) return;
-    fs.cpSync(oldDir, newDir, {
-      recursive: true,
-      filter: (src) => !/^Singleton/.test(path.basename(src)), // boshqa nusxaning qulf fayllari
-    });
+    if (!fs.existsSync(oldDir) || fs.existsSync(marker)) return;
+    fs.mkdirSync(newDir, { recursive: true });
+    // localStorage (sozlamalar), Cache API (yuklangan suralar), IndexedDB, main jarayon sozlamalari
+    for (const name of ['Local Storage', 'Service Worker', 'IndexedDB', 'settings.json', 'shortcuts.json']) {
+      const from = path.join(oldDir, name);
+      if (!fs.existsSync(from)) continue;
+      try {
+        fs.rmSync(path.join(newDir, name), { recursive: true, force: true });
+        fs.cpSync(from, path.join(newDir, name), { recursive: true });
+      } catch (e) {
+        console.error('userData migration failed for', name, e);
+      }
+    }
+    fs.writeFileSync(marker, new Date().toISOString());
   } catch (e) {
     console.error('userData migration failed:', e);
   }

@@ -1,7 +1,7 @@
 {
   "name": "floating-quran",
   "productName": "Floating Quran",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Quran recitation with floating subtitles above every window",
   "main": "src/main.js",
   "author": "Elnur Suyunov",
